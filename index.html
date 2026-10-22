@@ -1,0 +1,2139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HMG 차량용 앱 공모전 분석</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --text: #191c21;
+  --text-2: #4a5160;
+  --muted: #7a8291;
+  --border: #e2e5ea;
+  --accent: #0b3d7a;
+  --accent-2: #1d63c4;
+  --accent-soft: #e9f0fb;
+  --ok: #138a52;
+  --ok-soft: #e4f5ec;
+  --warn: #b26a00;
+  --warn-soft: #fff3df;
+  --mark: #fff1b8;
+  --flash: #fff4c2;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 16px rgba(16, 24, 40, .05);
+  --op: #6b46d9;
+  --op-soft: #f4f0ff;
+  --op-line: #c9b8f7;
+  --unv: #5b6b82;
+  --unv-soft: #f1f4f8;
+  --dim: #c3c8d0;
+  --topbar-h: 56px;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #171a20;
+    --surface-2: #1e222a;
+    --text: #e9ecf1;
+    --text-2: #b7bfcc;
+    --muted: #8a93a3;
+    --border: #2a2f39;
+    --accent: #8db8f5;
+    --accent-2: #8db8f5;
+    --accent-soft: #1a2638;
+    --ok: #4cc58a;
+    --ok-soft: #13291f;
+    --warn: #f0b04d;
+    --warn-soft: #2d2412;
+    --mark: #4a3f12;
+    --flash: #3d3614;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    --op: #b49cff;
+    --op-soft: #221b38;
+    --op-line: #5b4a94;
+    --unv: #9fb0c8;
+    --unv-soft: #1b2230;
+    --dim: #4a505c;
+  }
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-size: 16px;
+  line-height: 1.75;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  font-feature-settings: "tnum" 0;
+}
+/* 고정 상단바에 가려지지 않도록 모든 앵커 대상에 여백을 둔다 */
+[id] { scroll-margin-top: calc(var(--topbar-h) + 20px); }
+
+/* ---------- 상단바 ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.current-section {
+  font-size: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.current-section:not(:empty)::before { content: "/"; margin-right: 12px; color: var(--border); }
+.progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; }
+.progress-bar { height: 100%; width: 0; background: var(--accent-2); transition: width .1s linear; }
+.toc-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 38px;
+  height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.toc-toggle span { display: block; height: 2px; border-radius: 2px; background: var(--text); }
+
+/* ---------- 레이아웃 ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+.sidebar {
+  position: sticky;
+  top: var(--topbar-h);
+  align-self: start;
+  height: calc(100vh - var(--topbar-h));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 4px 40px 0;
+  scrollbar-width: thin;
+}
+.sidebar-head {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin: 0 0 10px 12px;
+}
+#toc ul { list-style: none; margin: 0; padding: 0; }
+#toc ul ul { margin: 2px 0 8px; }
+#toc a {
+  display: block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.45;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+#toc > ul > li > a { font-weight: 600; color: var(--text); }
+#toc ul ul a { padding-left: 24px; font-size: 13.5px; }
+#toc a:hover { background: var(--surface-2); }
+#toc a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-left-color: var(--accent-2);
+  font-weight: 600;
+}
+#toc a.active-parent { color: var(--accent); }
+main { min-width: 0; padding: 32px 0 120px; }
+
+/* ---------- 요약 영역 ---------- */
+.hero { margin-bottom: 56px; }
+.eyebrow { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--accent-2); letter-spacing: .01em; }
+.hero h1 { margin: 0 0 12px; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.25; letter-spacing: -.025em; }
+.lede { margin: 0 0 28px; font-size: 17px; color: var(--text-2); max-width: 760px; }
+.lede strong { color: var(--text); }
+
+.countdowns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.countdown {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.countdown.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .countdown.primary { color: #0f1115; } }
+.cd-label { font-size: 13px; font-weight: 600; opacity: .8; }
+.cd-value { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.cd-sub { font-size: 13px; opacity: .75; }
+.countdown.past { opacity: .5; }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.stat-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.stat-value { font-size: 26px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.stat-value small { font-size: 15px; font-weight: 600; margin-left: 3px; color: var(--text-2); }
+.stat-sub { font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.stat.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.stat.warn .stat-value { color: var(--warn); }
+
+.panel {
+  padding: 20px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.panel-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 12px; }
+.panel-grid .panel { margin-bottom: 0; }
+.panel-grid.single { grid-template-columns: 1fr; }
+.panel-grid.single .sdk-list { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.panel-title { margin: 0 0 14px; font-size: 15px; font-weight: 700; color: var(--text); border: 0; padding: 0; }
+.panel p { margin: 0 0 10px; font-size: 14.5px; color: var(--text-2); }
+.panel-note { font-size: 13.5px !important; margin: 12px 0 0 !important; }
+.panel a { color: var(--accent-2); font-weight: 600; }
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  position: relative;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 7px; right: 7px; top: 7px;
+  height: 2px;
+  background: var(--border);
+}
+.timeline li { position: relative; padding-top: 24px; padding-right: 6px; }
+.timeline li::before {
+  content: "";
+  position: absolute;
+  top: 1px; left: 0;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+}
+.timeline li.key::before { border-color: var(--accent-2); }
+.timeline li.done::before { background: var(--muted); border-color: var(--muted); }
+.timeline li.next::before { background: var(--accent-2); border-color: var(--accent-2); box-shadow: 0 0 0 5px var(--accent-soft); }
+.tl-date { display: block; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tl-name { display: block; font-size: 13px; line-height: 1.45; color: var(--text-2); }
+.timeline li.done .tl-date, .timeline li.done .tl-name { color: var(--muted); }
+.timeline li.key .tl-name { color: var(--text); font-weight: 600; }
+
+.sdk-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.sdk-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.sdk-list em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.sdk-list .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.sdk-list .ok { background: var(--ok-soft); }
+.sdk-list .ok .dot { background: var(--ok); }
+.sdk-list .ok em { color: var(--ok); }
+.sdk-list .wait { background: var(--surface-2); color: var(--text-2); }
+.sdk-list .wait .dot { background: var(--warn); }
+.sdk-list .wait em { color: var(--warn); }
+
+.recommend { border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+.badge {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.recommend .panel-title { font-size: 18px; margin-bottom: 6px; }
+.checks { list-style: none; margin: 0; padding: 0; }
+.checks li { position: relative; padding-left: 24px; font-size: 14.5px; color: var(--text-2); margin: 6px 0; line-height: 1.55; }
+.checks li::before { content: "✓"; position: absolute; left: 2px; top: 0; color: var(--ok); font-weight: 800; }
+
+/* ---------- 본문 ---------- */
+.doc { max-width: 820px; }
+.doc > ul:first-child {
+  list-style: none;
+  margin: 0 0 40px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--text-2);
+}
+.doc > ul:first-child li { margin: 4px 0; }
+.doc > ul:first-child strong { background: none; color: var(--text); }
+.doc section.level1 { margin-top: 64px; }
+.doc section.level1:first-of-type { margin-top: 0; }
+.doc h1 {
+  font-size: 26px;
+  line-height: 1.35;
+  letter-spacing: -.02em;
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.doc h2 { font-size: 19px; line-height: 1.45; letter-spacing: -.01em; margin: 40px 0 12px; }
+.doc h3 { font-size: 17px; margin: 28px 0 10px; }
+.doc h1, .doc h2 { border-radius: 6px; transition: background-color .6s ease; }
+.doc section:target > h1, .doc section:target > h2 { animation: flash 2s ease-out; }
+.doc .flash { animation: flash 2s ease-out; }
+@keyframes flash {
+  0%, 30% { background: var(--flash); box-shadow: 0 0 0 8px var(--flash); }
+  100% { background: transparent; box-shadow: 0 0 0 8px transparent; }
+}
+.doc p, .doc ul, .doc ol { margin: 0 0 16px; }
+.doc li { margin: 5px 0; }
+.doc li > p { margin: 0; }
+.doc a { color: var(--accent-2); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.doc strong { font-weight: 700; background: linear-gradient(transparent 62%, var(--mark) 62%); }
+.doc code {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: .86em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.doc blockquote {
+  margin: 20px 0;
+  padding: 14px 20px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent-2);
+  border-radius: 0 12px 12px 0;
+  color: var(--text);
+}
+.doc blockquote p:last-child { margin-bottom: 0; }
+
+.table-wrap {
+  margin: 16px 0 24px;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.doc table { width: 100%; border-collapse: collapse; font-size: 14.5px; line-height: 1.6; }
+.doc th, .doc td { padding: 11px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.doc th {
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.doc td:first-child { min-width: 110px; }
+.doc tbody tr:last-child td { border-bottom: 0; }
+.doc tbody tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.doc td strong { background: none; }
+
+.doc hr { border: 0; border-top: 1px solid var(--border); margin: 48px 0; }
+.doc a.footnote-ref { text-decoration: none; font-weight: 600; }
+.doc a.footnote-ref sup { font-size: 11px; }
+.doc a.footnote-ref + a.footnote-ref sup::before { content: ","; }
+.doc section.footnotes {
+  margin-top: 64px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+.doc section.footnotes hr { display: none; }
+.doc section.footnotes li:target { background: var(--flash); border-radius: 6px; }
+
+.to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity .2s, transform .2s;
+}
+.to-top.show { opacity: 1; pointer-events: auto; transform: none; }
+.scrim { position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, .35); }
+
+
+/* ---------- 사실·의견 표시 ---------- */
+.mode-switch {
+  margin-left: auto;
+  display: inline-flex;
+  flex: none;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.mode-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.mode-switch button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.mode-switch button[data-mode="op"][aria-pressed="true"] { color: var(--op); }
+
+.legend {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--text-2);
+}
+.legend-item { display: flex; gap: 12px; align-items: baseline; }
+.legend-item b { color: var(--text); font-weight: 600; }
+.legend-tip { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.legend-tip b { color: var(--text-2); }
+.sw {
+  flex: none;
+  min-width: 68px;
+  text-align: center;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+.sw-fact { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.sw-op { background: var(--op-soft); color: var(--op); border: 1px solid var(--op-line); }
+.sw-unv { background: var(--unv-soft); color: var(--unv); border: 1px dashed var(--unv); }
+
+.badge-op { background: var(--op-soft); color: var(--op); margin-left: 6px; }
+.badge-fact { background: var(--surface-2); color: var(--text-2); margin: 0 0 0 6px; vertical-align: 2px; }
+.op-panel { border-color: var(--op-line); }
+
+/* 의견 블록 */
+.doc div.op, .doc div.unv {
+  margin: 20px 0;
+  padding: 12px 20px 4px;
+  border-radius: 0 12px 12px 0;
+}
+.doc div.op { background: var(--op-soft); border-left: 3px solid var(--op); }
+.doc div.unv { background: var(--unv-soft); border: 1px dashed var(--unv); border-left-width: 3px; border-radius: 0 12px 12px 0; }
+.doc div.op::before, .doc div.unv::before,
+.doc section.opinion > :is(h1, h2) .tag, .doc section.unresolved > :is(h1, h2) .tag {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.8;
+  letter-spacing: 0;
+}
+.doc div.op::before, .doc div.unv::before { margin-bottom: 6px; }
+.doc div.op::before { content: "의견"; background: var(--surface); color: var(--op); border: 1px solid var(--op-line); }
+.doc div.unv::before { content: "확인 필요"; background: var(--surface); color: var(--unv); border: 1px dashed var(--unv); }
+.doc div.op blockquote { background: var(--surface); border-left-color: var(--op-line); }
+.doc div.op .table-wrap { box-shadow: none; }
+.doc section.opinion blockquote { background: var(--op-soft); border-left-color: var(--op-line); }
+
+/* 의견 문장 */
+.doc span.op {
+  background: var(--op-soft);
+  box-shadow: inset 0 -2px 0 var(--op-line);
+  border-radius: 3px;
+  padding: 1px 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.lede .op { color: var(--op); font-weight: 600; }
+.doc span.unv {
+  border-bottom: 1.5px dashed var(--unv);
+  background: var(--unv-soft);
+  padding: 1px 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* 의견 섹션 안의 사실 문장 */
+.doc span.fact {
+  background: var(--ok-soft);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ok) 45%, transparent);
+  border-radius: 3px;
+  padding: 1px 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.doc span.fact strong { background: none; }
+
+/* 의견·확인 필요 섹션 */
+.doc section.opinion, .doc section.unresolved { position: relative; padding-left: 22px; }
+.doc section.opinion::before, .doc section.unresolved::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 6px; bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+}
+.doc section.opinion::before { background: var(--op-line); }
+.doc section.unresolved::before { background: repeating-linear-gradient(var(--unv) 0 6px, transparent 6px 11px); }
+.doc section.opinion > :is(h1, h2) .tag { margin-left: 10px; vertical-align: 4px; background: var(--op-soft); color: var(--op); border: 1px solid var(--op-line); }
+.doc section.unresolved > :is(h1, h2) .tag { margin-left: 10px; vertical-align: 4px; background: var(--unv-soft); color: var(--unv); border: 1px dashed var(--unv); }
+
+/* 표의 의견 열 */
+.doc [class*="opcol-"] th.op-col, .doc [class*="opcol-"] td.op-col { background: var(--op-soft); }
+.doc [class*="opcol-"] th.op-col { color: var(--op); }
+.doc [class*="opcol-"] th.op-col::after {
+  content: "의견";
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--op-line);
+  font-size: 11px;
+  vertical-align: 1px;
+}
+
+/* 목차 표시 */
+#toc a .toc-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  vertical-align: 1px;
+}
+#toc a .toc-tag.op { background: var(--op-soft); color: var(--op); }
+#toc a .toc-tag.unv { background: var(--unv-soft); color: var(--unv); border: 1px dashed var(--unv); }
+
+/* 보기 전환: 사실만 또렷하게 */
+.mode-fact .doc :is(div.op, div.unv, span.op, span.unv),
+.mode-fact .doc section.opinion :is(p, li, blockquote, td, th),
+.mode-fact .doc section.unresolved :is(p, li),
+.mode-fact .doc .op-col { color: var(--dim) !important; }
+.mode-fact .doc :is(div.op, div.unv) { background: transparent; }
+.mode-fact .doc :is(span.op, span.unv) { background: transparent; box-shadow: none; border-color: transparent; }
+.mode-fact .doc section.opinion :is(span.fact, span.fact *) { color: var(--text) !important; }
+.mode-fact .doc :is(div.op, div.unv, span.op, section.opinion, section.unresolved, .op-col) :is(strong, a, code) { color: inherit; background: none; }
+.mode-fact .doc section.opinion span.fact strong { color: var(--text); }
+.mode-fact .op-panel { opacity: .35; }
+
+/* 보기 전환: 의견만 또렷하게 */
+.mode-op .doc :is(p, li, td, th, blockquote, .footnotes) { color: var(--dim); }
+.mode-op .doc :is(p, li, td, blockquote) :is(strong, a, code) { color: inherit; background: none; }
+.mode-op .doc div.op :is(p, li, td, th, blockquote),
+.mode-op .doc span.op,
+.mode-op .doc section.opinion :is(p, li, td, th, blockquote),
+.mode-op .doc .op-col { color: var(--text) !important; }
+.mode-op .doc :is(div.op, span.op, section.opinion, .op-col) :is(strong) { color: var(--text); background: linear-gradient(transparent 62%, var(--mark) 62%); }
+.mode-op .doc :is(div.op, span.op, section.opinion, .op-col) :is(a) { color: var(--accent-2); }
+.mode-op .doc section.opinion span.fact,
+.mode-op .doc section.opinion span.fact * { color: var(--dim) !important; background: transparent; box-shadow: none; }
+.mode-op .doc div.unv :is(p, li) { color: var(--dim); }
+.mode-op .stats, .mode-op .countdowns, .mode-op .timeline, .mode-op .sdk-list { opacity: .45; }
+
+/* ---------- 반응형 ---------- */
+@media (max-width: 1080px) {
+  .layout { display: block; padding: 0 20px; }
+  .toc-toggle { display: flex; }
+  .sidebar {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    bottom: 0;
+    z-index: 26;
+    width: min(320px, 86vw);
+    /* 데스크톱의 align-self: start가 fixed 서랍에 적용되면 높이가 내용만큼 늘어나 아래 항목에 닿을 수 없다 */
+    align-self: auto;
+    height: calc(100dvh - var(--topbar-h));
+    padding: 20px 12px 40px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform .22s ease;
+  }
+  body.toc-open .sidebar { transform: none; box-shadow: var(--shadow); }
+  .doc { max-width: none; }
+}
+@media (max-width: 760px) {
+  body { font-size: 15.5px; }
+  .topbar { padding: 0 16px; gap: 10px; }
+  .current-section { display: none; }
+  .brand { font-size: 14px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .mode-switch button { padding: 5px 9px; }
+  .legend-item { flex-direction: column; gap: 4px; }
+  .layout { padding: 0 16px; }
+  main { padding-top: 24px; }
+  .countdowns { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .countdown { padding: 12px; }
+  .cd-value { font-size: 22px; }
+  .cd-label, .cd-sub { font-size: 12px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .panel-grid { grid-template-columns: 1fr; }
+  .timeline { grid-template-columns: 1fr; gap: 10px; }
+  .timeline::before { left: 6px; right: auto; top: 8px; bottom: 8px; width: 2px; height: auto; }
+  .timeline li { padding: 0 0 0 28px; display: flex; gap: 10px; align-items: baseline; }
+  .timeline li::before { top: 4px; }
+  .tl-date { min-width: 56px; }
+  .doc h1 { font-size: 22px; }
+  .doc h2 { font-size: 18px; }
+  .to-top { right: 16px; bottom: 16px; }
+}
+@media (max-width: 440px) {
+  .brand { display: none; }
+}
+@media (max-width: 400px) {
+  .countdowns { grid-template-columns: 1fr; }
+  .countdown { flex-direction: row; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+}
+
+@media print {
+  .topbar, .sidebar, .to-top, .scrim, .legend-tip { display: none !important; }
+  .layout { display: block; padding: 0; }
+  body, html { background: #fff; }
+  .countdown, .stat, .panel, .table-wrap { box-shadow: none; }
+  .doc { max-width: none; }
+  .doc h1, .doc h2 { break-after: avoid; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="toc-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="목차 열기">
+    <span></span><span></span><span></span>
+  </button>
+  <a class="brand" href="#top">HMG 차량용 앱 공모전 분석</a>
+  <span class="current-section" aria-live="polite"></span>
+  <div class="progress" aria-hidden="true"><div class="progress-bar"></div></div>
+</header>
+
+<div class="scrim" hidden></div>
+
+<div class="layout">
+  <aside id="sidebar" class="sidebar" aria-label="목차">
+    <div class="sidebar-head">목차</div>
+    <nav id="toc">
+<ul>
+<li><a href="#핵심-사실" id="toc-핵심-사실">핵심 사실</a></li>
+<li><a href="#1-공모전-개요" id="toc-1-공모전-개요">1. 공모전 개요</a>
+<ul>
+<li><a href="#11-기본-정보" id="toc-11-기본-정보">1.1 기본 정보</a></li>
+<li><a href="#12-상금과-경쟁-구조" id="toc-12-상금과-경쟁-구조">1.2
+상금과 경쟁 구조</a></li>
+<li><a href="#13-수상팀-지원" id="toc-13-수상팀-지원">1.3 수상팀
+지원</a></li>
+</ul></li>
+<li><a href="#2-일정" id="toc-2-일정">2. 일정</a>
+<ul>
+<li><a href="#21-공식-일정" id="toc-21-공식-일정">2.1 공식 일정</a></li>
+<li><a href="#22-남은-기간" id="toc-22-남은-기간">2.2 남은 기간</a></li>
+</ul></li>
+<li><a href="#3-심사-기준" id="toc-3-심사-기준">3. 심사 기준</a>
+<ul>
+<li><a href="#31-공개된-1차-평가-기준"
+id="toc-31-공개된-1차-평가-기준">3.1 공개된 1차 평가 기준</a></li>
+<li><a href="#32-사업성-평가-지표" id="toc-32-사업성-평가-지표">3.2
+사업성 평가 지표</a></li>
+</ul></li>
+<li><a href="#4-개발-환경과-sdk-제약" id="toc-4-개발-환경과-sdk-제약">4.
+개발 환경과 SDK 제약</a>
+<ul>
+<li><a href="#41-공식-개발-환경" id="toc-41-공식-개발-환경">4.1 공식
+개발 환경</a></li>
+<li><a href="#42-공개-문서상-sdk-사용-가능-상태"
+id="toc-42-공개-문서상-sdk-사용-가능-상태">4.2 공개 문서상 SDK 사용 가능
+상태</a></li>
+<li><a href="#43-차종별-데이터권한-확인"
+id="toc-43-차종별-데이터권한-확인">4.3 차종별 데이터·권한 확인</a></li>
+<li><a href="#44-주행-중-ui-제한" id="toc-44-주행-중-ui-제한">4.4 주행
+중 UI 제한</a></li>
+<li><a href="#45-virtual-console-시뮬레이션-범위"
+id="toc-45-virtual-console-시뮬레이션-범위">4.5 Virtual Console
+시뮬레이션 범위</a></li>
+</ul></li>
+<li><a href="#5-플랫폼-기본-기능" id="toc-5-플랫폼-기본-기능">5. 플랫폼
+기본 기능</a>
+<ul>
+<li><a href="#51-공식-소개에-포함된-기능"
+id="toc-51-공식-소개에-포함된-기능">5.1 공식 소개에 포함된 기능</a></li>
+</ul></li>
+<li><a href="#6-접수양식과-제출물-요건"
+id="toc-6-접수양식과-제출물-요건">6. 접수양식과 제출물 요건</a>
+<ul>
+<li><a href="#61-공식-접수양식-구성" id="toc-61-공식-접수양식-구성">6.1
+공식 접수양식 구성</a></li>
+<li><a href="#62-단계별-개발-산출물-요건"
+id="toc-62-단계별-개발-산출물-요건">6.2 단계별 개발 산출물 요건</a></li>
+<li><a href="#63-이메일과-저장소-제출-조건"
+id="toc-63-이메일과-저장소-제출-조건">6.3 이메일과 저장소 제출
+조건</a></li>
+<li><a href="#64-숏폼-챌린지" id="toc-64-숏폼-챌린지">6.4 숏폼
+챌린지</a></li>
+</ul></li>
+<li><a href="#7-권리와-수상-후-의무" id="toc-7-권리와-수상-후-의무">7.
+권리와 수상 후 의무</a></li>
+<li><a href="#8-설명회와-운영국에-확인할-질문"
+id="toc-8-설명회와-운영국에-확인할-질문">8. 설명회와 운영국에 확인할
+질문</a></li>
+<li><a href="#부록-병합-검토-기록" id="toc-부록-병합-검토-기록">부록.
+병합 검토 기록</a>
+<ul>
+<li><a href="#분석-a에서-수용한-내용-출처-재확인-완료"
+id="toc-분석-a에서-수용한-내용-출처-재확인-완료">분석 A에서 수용한 내용
+(출처 재확인 완료)</a></li>
+<li><a href="#분석-b에서-추가한-내용"
+id="toc-분석-b에서-추가한-내용">분석 B에서 추가한 내용</a></li>
+<li><a href="#수정조정한-내용" id="toc-수정조정한-내용">수정·조정한
+내용</a></li>
+</ul></li>
+<li><a href="#출처" id="toc-출처">출처</a></li>
+</ul>
+    </nav>
+  </aside>
+
+  <main id="top">
+    <section class="hero">
+      <p class="eyebrow">공모전 분석 · 공식 출처로 확인한 사실 정리 · 2026.10.22 기준</p>
+      <h1>현대자동차그룹 차량용 앱 개발 공모전</h1>
+      <p class="lede">Pleos Connect(Android Automotive) 차량용 앱 공모전. 접수까지 3주 남짓, 그리고 <strong>1차 발표 후 PT까지 10일</strong>뿐입니다.</p>
+
+      <div class="legend" aria-label="사실·의견 표시 방법">
+        <div class="legend-item"><span class="sw sw-fact">사실</span><span>표시 없는 본문. 공식 출처를 직접 열어 확인했고, 각주 번호로 원문에 연결됩니다.</span></div>
+        <div class="legend-item"><span class="sw sw-unv">확인 필요</span><span>점선. 출처로 확정하지 못했거나 운영국 답변이 필요한 내용입니다. <b class="count-unv"></b></span></div>
+        <p class="legend-tip">분석 의견과 제안은 이 문서에서 제외했습니다.</p>
+      </div>
+
+      <div class="countdowns">
+        <div class="countdown" data-date="2026-11-15">
+          <span class="cd-label">접수 마감</span>
+          <span class="cd-value">D-24</span>
+          <span class="cd-sub">11/15(일) 23:59</span>
+        </div>
+        <div class="countdown" data-date="2026-11-23">
+          <span class="cd-label">1차 발표</span>
+          <span class="cd-value">D-32</span>
+          <span class="cd-sub">11/23(월) · 20팀</span>
+        </div>
+        <div class="countdown primary" data-date="2026-12-03">
+          <span class="cd-label">오프라인 PT 심사</span>
+          <span class="cd-value">D-42</span>
+          <span class="cd-sub">12/3–4 · 동작하는 앱 시연</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">총상금</span>
+          <span class="stat-value">5,100<small>만원</small></span>
+          <span class="stat-sub">대상 1,000 · 최우수 600 · 우수 400 (부문별) · 특별상 150×2</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">일반 부문 자리</span>
+          <span class="stat-value">4<small>팀</small></span>
+          <span class="stat-sub">대상 1 · 최우수 1 · 우수 2, 부문 통합 특별상 2팀 별도</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">PT → 최종</span>
+          <span class="stat-value">20<small>→</small>10</span>
+          <span class="stat-sub">최종 10팀 = 수상 10자리 (공고 기준)</span>
+        </div>
+        <div class="stat warn">
+          <span class="stat-label">지금 쓸 수 있는 SDK</span>
+          <span class="stat-value">2<small>/ 6</small></span>
+          <span class="stat-sub">음성·위치·제어 SDK는 아직 신청 불가</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">전체 일정</h2>
+        <ol class="timeline">
+          <li data-date="2026-10-21"><span class="tl-date">10/21</span><span class="tl-name">접수 시작</span></li>
+          <li data-date="2026-10-28"><span class="tl-date">10/28</span><span class="tl-name">온라인 설명회</span></li>
+          <li data-date="2026-11-15" class="key"><span class="tl-date">11/15</span><span class="tl-name">접수 마감 23:59</span></li>
+          <li data-date="2026-11-23"><span class="tl-date">11/23</span><span class="tl-name">1차 발표 · 20팀</span></li>
+          <li data-date="2026-12-03" class="key"><span class="tl-date">12/3–4</span><span class="tl-name">오프라인 PT</span></li>
+          <li data-date="2026-12-18"><span class="tl-date">12/18</span><span class="tl-name">최종 10팀</span></li>
+          <li data-date="2027-02-01"><span class="tl-date">2027.02</span><span class="tl-name">전시 · 시상</span></li>
+        </ol>
+      </div>
+
+      <div class="panel-grid single">
+        <div class="panel">
+          <h2 class="panel-title">Pleos SDK 공개 상태 <span class="badge badge-fact">사실</span></h2>
+          <ul class="sdk-list">
+            <li class="ok"><span class="dot"></span>Vehicle State<em>사용 가능</em></li>
+            <li class="ok"><span class="dot"></span>NaviHelper<em>사용 가능</em></li>
+            <li class="wait"><span class="dot"></span>FusedLocation<em>준비 중</em></li>
+            <li class="wait"><span class="dot"></span>TextToSpeech<em>준비 중</em></li>
+            <li class="wait"><span class="dot"></span>SpeechToText<em>준비 중</em></li>
+            <li class="wait"><span class="dot"></span>Vehicle Control<em>준비 중</em></li>
+          </ul>
+          <p class="panel-note">공모전 사이트는 6종 모두 소개하지만, 개발 문서에서는 2종만 즉시 사용 가능합니다. <a href="#42-공개-문서상-sdk-사용-가능-상태">자세히</a></p>
+        </div>
+      </div>
+    </section>
+
+    <article class="doc">
+<ul>
+<li><strong>조사 기준일:</strong> 2026년 10월 22일, 한국 시간(KST)</li>
+<li><strong>공식 홈페이지:</strong> <a
+href="https://appdevchallenge.auto-hmg.io/">공모전 홈페이지</a></li>
+<li><strong>조사 범위:</strong> 공식 공고, 참가 가이드, FAQ,
+접수양식(DOCX), 참가·출품 유의사항, 이용약관, Pleos 개발 문서,
+현대자동차그룹의 플랫폼 소개</li>
+<li><strong>문서 목적:</strong> 참가 요건과 개발 제약을 공식 출처
+기준으로 정리한 자료</li>
+<li><strong>표기 기준:</strong> 공식 출처로 확인한 사실만 담는다. 분석
+의견·제안은 2026년 10월 22일에 모두 제외했으며, 제외 전 버전은
+<code>hmg-analysis-merged.with-opinions.md</code>에 있다. SDK 상태는
+공개 문서 확인 결과이며 참가 계정에서 직접 실행해 검증한 결과는
+아니다.</li>
+<li><strong>확인 필요 표시:</strong> 표시가 없는 본문은 공식 출처로
+확인한 사실이며 각주에 출처를 단다. <code>::: unv</code> 블록,
+<code>{.unv}</code> 문장, <code>{.unresolved}</code> 섹션은 출처로
+확정하지 못했거나 운영국 확인이 필요한 내용이다. HTML에서는 점선으로
+구분된다.</li>
+<li><strong>병합 정보:</strong> 두 개의 독립 분석(분석 A: 원본
+<code>hmg-analysis.md</code>, 분석 B: Claude Code 세션 분석)을 교차
+검증해 합쳤다. 판정 근거와 변경 내역은 문서 끝의 「부록. 병합 검토
+기록」에 정리했다.</li>
+</ul>
+<section id="핵심-사실" class="level1">
+<h1>핵심 사실</h1>
+<p>일정과 SDK에 관한 핵심 사실은 다음과 같다.</p>
+<ol type="1">
+<li><strong>수상 순위는 2026년 12월 3~4일 PT 심사에서 제출하고 시연한
+결과물로 결정된다.</strong> 2027년 2월은 전시와 순위 발표·시상 일정이며,
+PT 이후 기능 추가는 순위 평가에 반영되지 않는다.<a href="#fn1"
+class="footnote-ref" id="fnref1"
+role="doc-noteref"><sup>1</sup></a></li>
+<li><strong>1차 결과 발표(11/23)에서 PT(12/3)까지는
+10일뿐이다.</strong><a href="#fn2" class="footnote-ref" id="fnref2"
+role="doc-noteref"><sup>2</sup></a></li>
+<li><strong>공모전에서 소개하는 SDK와 공개 문서상 현재 사용 가능한 SDK
+범위가 다르다.</strong> Vehicle State와 NaviHelper는 신청 없이 사용
+가능하지만, FusedLocation·TextToSpeech·SpeechToText·Vehicle Control은
+"준비 중"으로 신청조차 불가하다.<a href="#fn3" class="footnote-ref"
+id="fnref3" role="doc-noteref"><sup>3</sup></a></li>
+</ol>
+</section>
+<section id="1-공모전-개요" class="level1">
+<h1>1. 공모전 개요</h1>
+<section id="11-기본-정보" class="level2">
+<h2>1.1 기본 정보</h2>
+<p>현대자동차그룹의 차량용 인포테인먼트 플랫폼 Pleos Connect에서 사용할
+앱을 발굴하는 공모전이다. 차량 상태, 이동 과정, 운전자와 동승자의 상황을
+활용해 새로운 고객 경험을 제공하는 서비스가 대상이며, 주제 제한은
+없다.<a href="#fn4" class="footnote-ref" id="fnref4"
+role="doc-noteref"><sup>4</sup></a><a href="#fn5" class="footnote-ref"
+id="fnref5" role="doc-noteref"><sup>5</sup></a></p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>확인한 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>공모전명</td>
+<td>현대자동차그룹 차량용 앱 개발 공모전</td>
+</tr>
+<tr>
+<td>슬로건</td>
+<td>Code your App into Pleos App Market</td>
+</tr>
+<tr>
+<td>참가 대상</td>
+<td>대학·대학원생, 일반인, 스타트업</td>
+</tr>
+<tr>
+<td>참가 형태</td>
+<td>개인 또는 대표자 포함 최대 5인 팀</td>
+</tr>
+<tr>
+<td>시상 부문</td>
+<td>대학생 / 일반·스타트업. 회사 소속 참가자는 일반 부문</td>
+</tr>
+<tr>
+<td>선발 규모</td>
+<td>1차 서류 합격 20팀 → 최종 선정 10팀</td>
+</tr>
+<tr>
+<td>접수 방식</td>
+<td>공식 접수양식 작성 후 이메일 제출</td>
+</tr>
+<tr>
+<td>개발 대상</td>
+<td>Pleos Connect 환경에서 실행되는 차량용 앱</td>
+</tr>
+<tr>
+<td>최종 선정팀 활동</td>
+<td>2027년 2월 행사 전시·시연 및 시상식 참석</td>
+</tr>
+</tbody>
+</table>
+<p>참가 자격은 공식 개요, 선발 규모와 현장 참석 의무는 참가·출품
+유의사항에 명시되어 있다. 현대자동차그룹 임직원은 참가할 수 있으나 최종
+시상과 상금 대상에서는 제외된다.<a href="#fn6" class="footnote-ref"
+id="fnref6" role="doc-noteref"><sup>6</sup></a><a href="#fn7"
+class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a></p>
+<p>공식 개요가 예시로 든 고객 니즈 영역은 모빌리티·라이프 편의, 인카
+엔터테인먼트, 스마트 드라이빙·안전, 패밀리·동승자 케어이며, 이 밖의
+주제도 자유롭게 출품할 수 있다.<a href="#fn8" class="footnote-ref"
+id="fnref8" role="doc-noteref"><sup>8</sup></a></p>
+</section>
+<section id="12-상금과-경쟁-구조" class="level2">
+<h2>1.2 상금과 경쟁 구조</h2>
+<p>본상 총상금은 <strong>5,100만 원</strong>이다. 숏폼 챌린지 어워드
+50만 원은 별도다.<a href="#fn9" class="footnote-ref" id="fnref9"
+role="doc-noteref"><sup>9</sup></a></p>
+<table>
+<thead>
+<tr>
+<th>상격</th>
+<th style="text-align: right;">팀당 상금</th>
+<th>선정 팀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>대상</td>
+<td style="text-align: right;">1,000만 원</td>
+<td>대학생 1팀, 일반 1팀</td>
+</tr>
+<tr>
+<td>최우수상</td>
+<td style="text-align: right;">600만 원</td>
+<td>대학생 1팀, 일반 1팀</td>
+</tr>
+<tr>
+<td>우수상</td>
+<td style="text-align: right;">400만 원</td>
+<td>대학생 2팀, 일반 2팀</td>
+</tr>
+<tr>
+<td>아이디어 특별상</td>
+<td style="text-align: right;">150만 원</td>
+<td>부문 통합 2팀</td>
+</tr>
+<tr>
+<td>숏폼 챌린지 어워드</td>
+<td style="text-align: right;">50만 원</td>
+<td>별도 1팀</td>
+</tr>
+</tbody>
+</table>
+<p>일반 부문에는 대상·최우수상·우수상 합계 네 자리가 있고, 부문 통합
+특별상 두 자리가 따로 있다.</p>
+<p>전체 지원팀 수는 공개되지 않았으므로 1차 경쟁률은 알 수 없다. 다만
+<strong>이후 단계의 비율은 공고로 확정되어 있다.</strong></p>
+<ul>
+<li>1차 합격 20팀 중 10팀이 최종 선정된다. PT 단계의 통과율은
+50%다.</li>
+<li>본상과 특별상 자리를 합치면 4 + 4 + 2 = 10으로 최종 선정 10팀과
+같다. 상격 배분이 공고대로 유지되면 <strong>최종 선정은 곧
+수상</strong>이고, PT 이후 남는 문제는 순위다.</li>
+<li>단, 공고는 "응모작 수와 심사 기준에 따라 시상 작품 수가 조정되거나
+수상작이 없을 수 있다"고 유보한다.<a href="#fn10" class="footnote-ref"
+id="fnref10" role="doc-noteref"><sup>10</sup></a></li>
+</ul>
+</section>
+<section id="13-수상팀-지원" class="level2">
+<h2>1.3 수상팀 지원</h2>
+<p>수상팀에게 Pleos App Market 탑재 준비를 지원한다. 다만 별도
+검증·심사와 차종·지역 조건이 적용되며, 입점이나 배포는 보장되지
+않는다.<a href="#fn11" class="footnote-ref" id="fnref11"
+role="doc-noteref"><sup>11</sup></a></p>
+</section>
+</section>
+<section id="2-일정" class="level1">
+<h1>2. 일정</h1>
+<section id="21-공식-일정" class="level2">
+<h2>2.1 공식 일정</h2>
+<p>모든 일정은 한국 시간 기준이며 변경 사항은 공지사항으로 안내한다.
+온라인 설명회의 정확한 시간과 접속 방법은 조사 시점에 추후 공지
+예정이었다. 설명회는 라이브 1회이며 다시보기를 제공할 예정이다.<a
+href="#fn12" class="footnote-ref" id="fnref12"
+role="doc-noteref"><sup>12</sup></a></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>날짜</th>
+<th>일정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026년 10월 21일~11월 15일 23:59</td>
+<td>참가 접수</td>
+</tr>
+<tr>
+<td>2026년 10월 28일 오후</td>
+<td>온라인 설명회</td>
+</tr>
+<tr>
+<td>2026년 11월 23일</td>
+<td>1차 결과 발표(2차 PT 대상 20팀)</td>
+</tr>
+<tr>
+<td><strong>2026년 12월 3~4일</strong></td>
+<td><strong>오프라인 PT 심사(실제 동작하는 앱 시연, 에뮬레이터 구동 화면
+또는 기기 시연)</strong></td>
+</tr>
+<tr>
+<td>2026년 12월 18일</td>
+<td>최종 선정 결과 발표(10팀)</td>
+</tr>
+<tr>
+<td>2026년 12월 19일~2027년 1월</td>
+<td>전시 준비(영상 제작 협조, APK 테스트·안정화. 추가 개발 기간
+아님)</td>
+</tr>
+<tr>
+<td>2027년 2월</td>
+<td>행사 전시·시상식(최종 순위 발표, 현장 시연)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>접수 마감 시각은 2026년 11월 15일 23:59다.</strong> 홈페이지
+일정에는 날짜만 안내되어 있지만, 공식 DOCX 접수양식에는 시각까지
+명시되어 있다.<a href="#fn13" class="footnote-ref" id="fnref13"
+role="doc-noteref"><sup>13</sup></a></p>
+<p>PT 장소는 현대자동차 강남대로사옥 1층 UX스튜디오 서울이며 주소는 서울
+강남구 강남대로 350이다.<a href="#fn14" class="footnote-ref"
+id="fnref14" role="doc-noteref"><sup>14</sup></a> PT 시연은 에뮬레이터
+구동 화면도 인정된다.<a href="#fn15" class="footnote-ref" id="fnref15"
+role="doc-noteref"><sup>15</sup></a></p>
+</section>
+<section id="22-남은-기간" class="level2">
+<h2>2.2 남은 기간</h2>
+<p>2026년 10월 22일 기준 날짜 차이는 다음과 같다.</p>
+<table>
+<thead>
+<tr>
+<th>기준</th>
+<th style="text-align: right;">남은 기간</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>접수 마감일 11월 15일까지</td>
+<td style="text-align: right;">24일</td>
+</tr>
+<tr>
+<td>PT 첫날 12월 3일까지</td>
+<td style="text-align: right;">42일</td>
+</tr>
+<tr>
+<td>1차 결과 발표 11월 23일에서 PT 첫날까지</td>
+<td style="text-align: right;">10일</td>
+</tr>
+</tbody>
+</table>
+<p>수상 순위는 12월 PT 결과물로 정해진다. 공식 FAQ는 PT 이후 추가 개발이
+순위 평가에 영향을 주지 않으며, 전시 준비와 현장 시연 안정화에
+집중하도록 안내한다.<a href="#fn16" class="footnote-ref" id="fnref16"
+role="doc-noteref"><sup>16</sup></a></p>
+</section>
+</section>
+<section id="3-심사-기준" class="level1">
+<h1>3. 심사 기준</h1>
+<section id="31-공개된-1차-평가-기준" class="level2">
+<h2>3.1 공개된 1차 평가 기준</h2>
+<p>다음 네 항목이 공식 1차 서류심사 기준이다. 세부 배점과 가산점 크기는
+공개하지 않았으며, 2차 PT 심사 기준은 추후 안내 예정이다.<a href="#fn17"
+class="footnote-ref" id="fnref17"
+role="doc-noteref"><sup>17</sup></a></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>평가 항목</th>
+<th>공식 평가의 초점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>차량특화성</strong></td>
+<td>모바일 대비 차량 환경의 고유 가치, 주행·정차·차량 기능과의 결합</td>
+</tr>
+<tr>
+<td><strong>창의성</strong></td>
+<td>차별성, 운전자·동승자의 Pain Point 정의와 해결 방식</td>
+</tr>
+<tr>
+<td><strong>기술 활용성</strong></td>
+<td>Pleos SDK/API가 핵심 경험에 기여하는 정도</td>
+</tr>
+<tr>
+<td><strong>사업성</strong></td>
+<td>타깃 고객, 예상 MAU, Retention Rate, 확장 계획</td>
+</tr>
+<tr>
+<td>가산점</td>
+<td>시연 영상, GitHub 저장소(소스·APK). 제출 수준에 따라 단계별
+부여</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="32-사업성-평가-지표" class="level2">
+<h2>3.2 사업성 평가 지표</h2>
+<p>공식 기준은 예상 MAU와 Retention Rate 등을 사업성 판단의 예시로 든다.
+접수양식 6번 항목도 같은 지표를 요구한다.<a href="#fn18"
+class="footnote-ref" id="fnref18" role="doc-noteref"><sup>18</sup></a><a
+href="#fn19" class="footnote-ref" id="fnref19"
+role="doc-noteref"><sup>19</sup></a></p>
+</section>
+</section>
+<section id="4-개발-환경과-sdk-제약" class="level1">
+<h1>4. 개발 환경과 SDK 제약</h1>
+<section id="41-공식-개발-환경" class="level2">
+<h2>4.1 공식 개발 환경</h2>
+<p>개발 대상은 차량 내부에서 실행되는 Android Automotive OS(AAOS) 기반
+Pleos Connect 앱이다.<a href="#fn20" class="footnote-ref" id="fnref20"
+role="doc-noteref"><sup>20</sup></a></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>항목</th>
+<th>공식 안내</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>개발 언어</td>
+<td>Java 또는 Kotlin</td>
+</tr>
+<tr>
+<td>최소 Android SDK</td>
+<td>API 28 이상</td>
+</tr>
+<tr>
+<td>Gradle</td>
+<td>8.0 이상</td>
+</tr>
+<tr>
+<td>개발·검증 도구</td>
+<td>Android Studio와 Pleos Connect 전용 에뮬레이터, Virtual Console</td>
+</tr>
+<tr>
+<td>설치 문서의 에뮬레이터</td>
+<td>2.1.0 (2.1.0 이후 CRN 입력 불필요)</td>
+</tr>
+<tr>
+<td>설치 문서의 시스템 이미지</td>
+<td>Android API 34</td>
+</tr>
+<tr>
+<td>에뮬레이터 RAM 설정</td>
+<td>4GB 안내</td>
+</tr>
+<tr>
+<td>Mac 지원</td>
+<td>ARM64용 시스템 이미지 URL 제공</td>
+</tr>
+</tbody>
+</table>
+<p>개발 환경 수치는 조사 시점의 공식 설치 문서를 기준으로 한다.<a
+href="#fn21" class="footnote-ref" id="fnref21"
+role="doc-noteref"><sup>21</sup></a><a href="#fn22" class="footnote-ref"
+id="fnref22" role="doc-noteref"><sup>22</sup></a></p>
+<p>개발 시작 전에 Pleos Playground 가입 → Workspace &gt; My Project에서
+프로젝트 생성 → SDK 사용 상태 확인 순서를 거친다.
+TextToSpeech·SpeechToText처럼 서버 연결이 필요한 SDK는 프로젝트의
+클라이언트 ID와 시크릿을 쓴다.<a href="#fn23" class="footnote-ref"
+id="fnref23" role="doc-noteref"><sup>23</sup></a></p>
+</section>
+<section id="42-공개-문서상-sdk-사용-가능-상태" class="level2">
+<h2>4.2 공개 문서상 SDK 사용 가능 상태</h2>
+<p>프로젝트 생성 및 SDK 사용 신청 문서와 API 호환성 문서는 다음과 같이
+안내한다.<a href="#fn24" class="footnote-ref" id="fnref24"
+role="doc-noteref"><sup>24</sup></a><a href="#fn25" class="footnote-ref"
+id="fnref25" role="doc-noteref"><sup>25</sup></a></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>SDK 또는 기능</th>
+<th>공개 문서상 상태</th>
+<th>차종별 호환성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vehicle State</strong></td>
+<td>별도 신청 없이 사용 가능</td>
+<td>차종별 상이, <code>checkXXXCapabilities</code>로 확인</td>
+</tr>
+<tr>
+<td><strong>NaviHelper</strong></td>
+<td>별도 신청 없이 사용 가능</td>
+<td>내비 탑재 차량에서만 완전 호환</td>
+</tr>
+<tr>
+<td>Vehicle Control</td>
+<td>준비 중, 신청 불가</td>
+<td>—</td>
+</tr>
+<tr>
+<td>FusedLocation</td>
+<td>준비 중, 신청 불가</td>
+<td>차종별 상이, <code>isSupported</code>로 확인</td>
+</tr>
+<tr>
+<td>TextToSpeech</td>
+<td>준비 중, 신청 불가</td>
+<td>공개되면 전 차종 호환</td>
+</tr>
+<tr>
+<td>SpeechToText</td>
+<td>준비 중, 신청 불가</td>
+<td>공개되면 전 차종 호환</td>
+</tr>
+</tbody>
+</table>
+<p>공모전 개발 안내는 위 SDK를 모두 소개하고, 음성 메모 앱(SpeechToText)
+같은 예시도 든다.<a href="#fn26" class="footnote-ref" id="fnref26"
+role="doc-noteref"><sup>26</sup></a></p>
+<p>NaviHelper는 목적지 설정·확인·취소, 경로 옵션 변경과 재탐색, 경유지
+추가·조회·삭제, 경로 탐색·주행 상태 이벤트 수신, 내비게이션 정보 조회와
+화면 요청 기능을 제공한다. 요청은 Pleos Connect 내비게이션 앱으로
+전달되며, 전달되는 이벤트는 내비게이션 앱의 구현과 현재 상태에 따라
+달라질 수 있다. NaviHelper는 <strong>내비게이션이 탑재된 차량에서만 완전
+호환</strong>된다.<a href="#fn27" class="footnote-ref" id="fnref27"
+role="doc-noteref"><sup>27</sup></a><a href="#fn28" class="footnote-ref"
+id="fnref28" role="doc-noteref"><sup>28</sup></a></p>
+<div class="unv">
+<p><strong>확인 범위:</strong> 위 상태는 공개 문서를 읽은 결과다. 참가
+계정에서 실제 SDK 호출이 성공하는지 검증한 결과는 아니며, 공모전 전용
+권한 제공 여부도 공개 안내만으로 확정하지 못했다.</p>
+</div>
+</section>
+<section id="43-차종별-데이터권한-확인" class="level2">
+<h2>4.3 차종별 데이터·권한 확인</h2>
+<p>SDK 사용이 가능하더라도 모든 차량 속성을 사용할 수 있다는 뜻은
+아니다. 차종과 속성별로 지원 여부나 접근성이 달라질 수 있다. 공식 문서는
+Vehicle SDK의 <code>checkXXXCapabilities</code>와 AAOS의
+<code>CarPropertyManager</code> 등을 통해 실제 지원 여부를 확인하도록
+안내하고, 모델명으로 분기하지 말라고 명시한다. SDK에 없는 특수 속성이
+필요하면 구현 전에 기술지원팀 검토를 요청해야 한다.<a href="#fn29"
+class="footnote-ref" id="fnref29"
+role="doc-noteref"><sup>29</sup></a></p>
+<p>앱 심사에서는 필요한 퍼미션을 선언하고, 사전 협의·승인된 범위에서
+사용해야 한다는 안내도 있다.<a href="#fn30" class="footnote-ref"
+id="fnref30" role="doc-noteref"><sup>30</sup></a></p>
+</section>
+<section id="44-주행-중-ui-제한" class="level2">
+<h2>4.4 주행 중 UI 제한</h2>
+<p>Pleos 앱은 플랫폼이 전달하는 <code>CarUxRestrictions</code>에 따라
+기능을 제한해야 한다. <code>CarUxRestrictionsManager</code>에 리스너를
+등록해 <code>onUxRestrictionsChanged()</code>로 상태를 받고,
+<code>ActiveRestrictions</code> 플래그(예:
+<code>UX_RESTRICTIONS_NO_VIDEO</code>)를 기능별로 적용한다. Distraction
+Optimization(DO)을 선언한 앱도 제한 상태가 활성화되면 직접 제한을
+적용해야 하며, 지역별 제한 규칙은 플랫폼이 알려 준다.<a href="#fn31"
+class="footnote-ref" id="fnref31"
+role="doc-noteref"><sup>31</sup></a></p>
+</section>
+<section id="45-virtual-console-시뮬레이션-범위" class="level2">
+<h2>4.5 Virtual Console 시뮬레이션 범위</h2>
+<p>Pleos Connect Virtual Console의 Emulation Controls는 도메인별로 가상
+상태를 바꿔 앱 동작을 확인하게 해 준다.<a href="#fn32"
+class="footnote-ref" id="fnref32" role="doc-noteref"><sup>32</sup></a>
+문서에 나온 주요 항목은 다음과 같다.</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>도메인</th>
+<th>조작 가능한 상태(일부)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Motion</td>
+<td>기어(P/R/N/D), 브레이크 페달, 주행거리, 조향각</td>
+</tr>
+<tr>
+<td>Convenience</td>
+<td>도어 개폐·잠금, 트렁크, 창문, 좌석 점유, 실내등, 와이퍼,
+방향지시등</td>
+</tr>
+<tr>
+<td>Energy</td>
+<td>배터리 SOC, 배터리 에너지, 잔여 주행거리, 충전 스위치, 충전 포트,
+충전 목표치</td>
+</tr>
+<tr>
+<td>Climate</td>
+<td>공조 전원, 에어컨, 목표 온도, 팬 속도</td>
+</tr>
+<tr>
+<td>ADAS·Safety</td>
+<td>크루즈 상태·목표 속도, 경고등</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="5-플랫폼-기본-기능" class="level1">
+<h1>5. 플랫폼 기본 기능</h1>
+<section id="51-공식-소개에-포함된-기능" class="level2">
+<h2>5.1 공식 소개에 포함된 기능</h2>
+<p>현대자동차그룹의 2026년 4월 30일 공식 Pleos Connect 소개에는 다음
+기능이 포함되어 있다.<a href="#fn33" class="footnote-ref" id="fnref33"
+role="doc-noteref"><sup>33</sup></a></p>
+<ul>
+<li>Gleo AI를 통한 목적지와 주변 식당 검색</li>
+<li>자연어 차량 제어와 차량 매뉴얼 정보 제공</li>
+<li>뉴스·날씨 등 웹검색</li>
+<li>내비게이션과 미디어 서비스</li>
+<li>YouTube·Spotify 등 외부 서비스 연동</li>
+</ul>
+<p>이는 해당 공식 발표의 소개 내용이며, 모든 차종·지역의 현재 설치 앱
+목록을 의미하지는 않는다. Pleos 개발 문서에도 "Gleo 인터페이스 구현"
+가이드가 있어, 기본 AI 비서와의 연동 지점이 존재한다.<a href="#fn34"
+class="footnote-ref" id="fnref34"
+role="doc-noteref"><sup>34</sup></a></p>
+</section>
+</section>
+<section id="6-접수양식과-제출물-요건" class="level1">
+<h1>6. 접수양식과 제출물 요건</h1>
+<section id="61-공식-접수양식-구성" class="level2">
+<h2>6.1 공식 접수양식 구성</h2>
+<p>공식 접수양식이 곧 기획서다. DOCX 양식은 「01 참가신청서」, 「02 앱
+프로젝트 소개/심사 자료」, 「03 개인정보 수집·이용 동의서」, 「04
+대표자·팀원별 동의 확인 및 서명」으로 구성되며, <strong>작품 소개
+자료에는 분량 제한이 없다.</strong><a href="#fn35" class="footnote-ref"
+id="fnref35" role="doc-noteref"><sup>35</sup></a></p>
+<p>「02 앱 프로젝트 소개/심사 자료」의 항목은 다음과 같다.<a
+href="#fn36" class="footnote-ref" id="fnref36"
+role="doc-noteref"><sup>36</sup></a></p>
+<ol type="1">
+<li>앱 한 줄 소개</li>
+<li>기획 배경</li>
+<li>앱 주요 기능 및 차량 특화 요소</li>
+<li>주요 사용 시나리오</li>
+<li>개발 계획(Pleos Connect 구현 범위, SDK/API 사용계획)</li>
+<li>기대효과 및 발전 가능성(타깃 고객 분석, 예상 MAU, Retention Rate,
+향후 서비스 확대 계획 등)</li>
+<li>참고자료(선택, 가산점 부여)</li>
+<li>숏폼 링크(선택, 가산점 없음)</li>
+</ol>
+<p><strong>심사 자료는 익명으로 작성해야 한다.</strong> 접수양식은 02
+작품 소개에 대표자·구성원의 성명·연락처·이메일·소속을 넣지 말라고
+안내하고, 공유 링크와 첨부자료에도 개인정보·계정정보·개발자 실명이
+노출되지 않도록 확인하라고 한다.<a href="#fn37" class="footnote-ref"
+id="fnref37" role="doc-noteref"><sup>37</sup></a></p>
+</section>
+<section id="62-단계별-개발-산출물-요건" class="level2">
+<h2>6.2 단계별 개발 산출물 요건</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>단계</th>
+<th>제출·시연 요건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1차 접수</td>
+<td>기획서 필수, 개발 산출물은 선택 제출</td>
+</tr>
+<tr>
+<td>1차 가산점</td>
+<td>시연 영상, 소스 코드와 APK가 포함된 GitHub 저장소 등 제출 수준에
+따른 가산점</td>
+</tr>
+<tr>
+<td>2차 PT</td>
+<td>실제 동작 가능한 앱 개발과 시연 필수(에뮬레이터 구동 화면 또는 기기
+시연)</td>
+</tr>
+<tr>
+<td>최종 선정 이후</td>
+<td>현장 전시용 최종 APK 제출 및 테스트</td>
+</tr>
+</tbody>
+</table>
+<p>1차 영상은 목업·프로토타입·화면 녹화도 인정된다. 1차 때 낸 산출물은
+PT 전까지 자유롭게 고도화할 수 있다. 숏폼 링크는 선택 제출이며 본상
+가산점이 없다.<a href="#fn38" class="footnote-ref" id="fnref38"
+role="doc-noteref"><sup>38</sup></a><a href="#fn39" class="footnote-ref"
+id="fnref39" role="doc-noteref"><sup>39</sup></a></p>
+</section>
+<section id="63-이메일과-저장소-제출-조건" class="level2">
+<h2>6.3 이메일과 저장소 제출 조건</h2>
+<p>공식 제출 안내는 다음과 같다.<a href="#fn40" class="footnote-ref"
+id="fnref40" role="doc-noteref"><sup>40</sup></a><a href="#fn41"
+class="footnote-ref" id="fnref41"
+role="doc-noteref"><sup>41</sup></a></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>항목</th>
+<th>조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>제출 이메일</td>
+<td>appdevchallenge@hyundai-partners.com</td>
+</tr>
+<tr>
+<td>이메일 제목</td>
+<td><code>[차량용 앱 개발 공모전] 팀명(개인은 성명)_대표자명</code></td>
+</tr>
+<tr>
+<td>동의서</td>
+<td>대표자와 팀원 전원의 개별 동의·서명·날짜. CC만으로 동의를 대체하지
+않음</td>
+</tr>
+<tr>
+<td>이메일 참조</td>
+<td>팀원 전원 CC. CC 주소는 팀원끼리 서로 보임</td>
+</tr>
+<tr>
+<td>GitHub</td>
+<td>소스 코드와 APK 함께 제출</td>
+</tr>
+<tr>
+<td>APK 기본 경로</td>
+<td><code>apk/</code></td>
+</tr>
+<tr>
+<td>APK 파일명</td>
+<td><code>팀명_앱이름_release.apk</code></td>
+</tr>
+<tr>
+<td>APK 형태</td>
+<td>실행 가능한 release 버전</td>
+</tr>
+<tr>
+<td>용량 초과 시</td>
+<td>GitHub Releases 링크 허용</td>
+</tr>
+<tr>
+<td>Private 저장소</td>
+<td>허용, 심사용 계정을 Collaborator로 초대</td>
+</tr>
+<tr>
+<td>수정 제출</td>
+<td>제목 앞에 <code>[수정제출]</code>, 처음 제출한 이메일 주소에서 전체
+자료·동의서를 다시 제출</td>
+</tr>
+<tr>
+<td>수정본 판단</td>
+<td>마감 전 마지막 제출본으로 심사</td>
+</tr>
+</tbody>
+</table>
+<p>README에는 앱 이름과 한 줄 소개, 실행 방법, 테스트 환경과 필요한
+설정, APK 위치 또는 Release 링크를 포함한다.</p>
+<p>조사 시점에 확인한 공지에서는 Private 저장소에 초대할 심사용 GitHub
+계정명을 찾지 못했다. 또한 <strong>개인 계정의 Private 저장소에서는
+Collaborator에게 쓰기 권한까지 부여된다</strong>고 공식 안내가
+경고한다.<a href="#fn42" class="footnote-ref" id="fnref42"
+role="doc-noteref"><sup>42</sup></a></p>
+</section>
+<section id="64-숏폼-챌린지" class="level2">
+<h2>6.4 숏폼 챌린지</h2>
+<p>숏폼은 본상과 별도인 참여형 행사다. 본상 총상금 5,100만 원과 별개로
+1팀에 50만 원을 시상하며, 본상 가산점은 없다.<a href="#fn43"
+class="footnote-ref" id="fnref43" role="doc-noteref"><sup>43</sup></a><a
+href="#fn44" class="footnote-ref" id="fnref44"
+role="doc-noteref"><sup>44</sup></a></p>
+<p>참여 조건은 30초~1분 세로 영상을 개인 또는 팀 계정의 Instagram 릴스나
+YouTube Shorts에 올리고, 필수 해시태그
+<code>#HMG차량용앱개발공모전</code>을 포함해 해시태그 2~3개를 다는
+것이다.<a href="#fn45" class="footnote-ref" id="fnref45"
+role="doc-noteref"><sup>45</sup></a></p>
+</section>
+</section>
+<section id="7-권리와-수상-후-의무" class="level1">
+<h1>7. 권리와 수상 후 의무</h1>
+<p>출품작의 지식재산권은 참가자에게 있으며, 수상작에는 다음 조건이 함께
+안내되어 있다.<a href="#fn46" class="footnote-ref" id="fnref46"
+role="doc-noteref"><sup>46</sup></a></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>항목</th>
+<th>공고 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>창작물 요건</td>
+<td>표절 작품과 이미 발표된 타 공모전 수상작은 심사 제외</td>
+</tr>
+<tr>
+<td>통상실시권</td>
+<td>주최 측이 가질 수 있으며 대가·범위·기간 등은 상호 협의</td>
+</tr>
+<tr>
+<td>우선협상권</td>
+<td>결과 발표일부터 4개월간 IP 양도 등에 관한 우선협상권을 가질 수
+있음</td>
+</tr>
+<tr>
+<td>수상작 이용</td>
+<td>주최 측은 비영리 공익 목적으로 복제·전송할 수 있고, 별도 합의로 2차
+저작물 작성·수익 창출도 가능</td>
+</tr>
+<tr>
+<td>현장 참여</td>
+<td>최종 10팀은 2027년 2월 시연·시상식 참석 의무</td>
+</tr>
+<tr>
+<td>전시 APK</td>
+<td>최종 선정팀은 현장 구동용 APK 제출</td>
+</tr>
+<tr>
+<td>상금 지급</td>
+<td>대표자에게 일괄 지급(분할 지급 없음), 기타소득세 등 원천징수</td>
+</tr>
+<tr>
+<td>수상 취소</td>
+<td>제3자 권리 침해·표절 등 분쟁 시 수상 취소 및 상금 전액 환수</td>
+</tr>
+</tbody>
+</table>
+<p><span class="unv">기존 상용 서비스 확장판의 허용 범위는 공개
+안내만으로 확정하기 어려웠다.</span></p>
+<p>오픈소스를 사용하면 라이선스를 준수하고 출처를 밝혀야 한다.
+이용약관은 제출 기술자료를 심사·운영 목적 외에 무단 사용·제공하지 않으며
+비밀유지를 위한 보안조치를 한다고 안내한다.<a href="#fn47"
+class="footnote-ref" id="fnref47" role="doc-noteref"><sup>47</sup></a>
+개인정보 처리는 수탁사(주식회사 스터닝)를 통해 진행된다.<a href="#fn48"
+class="footnote-ref" id="fnref48"
+role="doc-noteref"><sup>48</sup></a></p>
+<p>상금은 대표자에게 일괄 지급되며, 주최 측은 팀 내 분쟁을 중재하지
+않는다.<a href="#fn49" class="footnote-ref" id="fnref49"
+role="doc-noteref"><sup>49</sup></a></p>
+</section>
+<section id="8-설명회와-운영국에-확인할-질문" class="level1 unresolved">
+<h1 class="unresolved">8. 설명회와 운영국에 확인할 질문</h1>
+<p>답변에 따라 아이디어나 개발 일정이 달라질 수 있는 질문을 우선
+정리했다. 이 문서 작성 과정에서 운영국에 문의를 보내지는 않았다.</p>
+<ol type="1">
+<li><p><strong>참가자에게 실제 개방되는 SDK는 무엇인가?</strong> 준비
+중으로 표시된 위치·음성·차량 제어 기능에 공모전 전용 권한 또는 공개
+일정이 있는가? 없다면 AAOS 표준 음성·위치 API로 대체해도
+되는가?</p></li>
+<li><p><strong>PT에서 사용하는 에뮬레이터와 SDK 버전은
+무엇인가?</strong> 개인 노트북 사용, 네트워크 제공, 외부 백엔드 연결
+조건은 어떻게 되는가?</p></li>
+<li><p><strong>2차 결과물 제출 마감과 발표·시연 시간은 언제
+확정되는가?</strong></p></li>
+<li><p><strong>Private GitHub 심사용 계정과 심사자료 익명성 기준은
+무엇인가?</strong> 계정명과 커밋 작성자 표시를 어떻게 처리해야
+하는가?</p></li>
+<li><p><strong>기존 서비스의 차량용 확장판을 출품할 수 있는가?</strong>
+기존 코드·데이터·아이디어의 활용 범위와 타 공모전 수상 이력 관련 판단
+기준은 무엇인가?</p></li>
+<li><p><strong>2027년 2월 필수 참석 날짜·인원과 전시 지원 범위는
+무엇인가?</strong></p></li>
+<li><p><strong>학생과 일반인의 혼합팀 또는 복수 출품은 어떻게
+처리되는가?</strong> 해당하는 경우 부문 결정과 출품 가능 범위를
+확인한다.</p></li>
+<li><p><strong>IP 우선협상권의 기준이 되는 결과 발표일은
+언제인가?</strong> 12월 18일 최종 선정 발표인지, 2027년 2월 순위
+발표인지 확인한다. 사업화 계획이 있다면 구체적인 적용 시점과 협의 절차도
+확인한다.</p></li>
+</ol>
+</section>
+<section id="부록-병합-검토-기록" class="level1">
+<h1>부록. 병합 검토 기록</h1>
+<p>두 분석의 서로 다른 주장은 공식 출처를 다시 열어 확인한 뒤 수용
+여부를 정했다. 확인일은 2026년 10월 22일이다.</p>
+<section id="분석-a에서-수용한-내용-출처-재확인-완료" class="level2">
+<h2>분석 A에서 수용한 내용 (출처 재확인 완료)</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>주장</th>
+<th>확인 결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FusedLocation·TTS·STT·Vehicle Control은 "준비 중", Vehicle
+State·NaviHelper만 즉시 사용 가능</td>
+<td><code>create-my-project</code> 문서에서 원문 확인</td>
+</tr>
+<tr>
+<td>접수 마감 23:59</td>
+<td>DOCX 원문 확인</td>
+</tr>
+<tr>
+<td>작품 소개 분량 제한 없음, 심사 자료 익명 작성</td>
+<td>DOCX 원문 확인</td>
+</tr>
+<tr>
+<td><code>CarUxRestrictions</code> 기반 주행 제한 의무</td>
+<td>Driving Restriction 가이드 원문 확인</td>
+</tr>
+<tr>
+<td>Virtual Console로 차량 상태 시뮬레이션</td>
+<td>가이드 원문 확인. 도메인 상세를 추가함</td>
+</tr>
+<tr>
+<td>차종별 API 가용성,
+<code>checkXXXCapabilities</code>·<code>CarPropertyManager</code></td>
+<td>API Compatibility 문서 원문 확인</td>
+</tr>
+<tr>
+<td>에뮬레이터 2.1.0, API 34, RAM 4GB, ARM64 이미지</td>
+<td>에뮬레이터 설치 문서 원문 확인</td>
+</tr>
+<tr>
+<td>Pleos Connect 공식 발표(2026.4.30)의 기본 기능 목록</td>
+<td>보도자료 원문 확인</td>
+</tr>
+<tr>
+<td>NaviHelper 기능, SDK 개요(AAOS 기반·퍼미션 승인 범위),
+이용약관(오픈소스·비밀유지)</td>
+<td>각 원문 확인</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="분석-b에서-추가한-내용" class="level2">
+<h2>분석 B에서 추가한 내용</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>추가 내용</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>최종 10팀 = 수상 10자리(4+4+2), PT 통과율 50%</td>
+<td>시상 내역과 유의사항</td>
+</tr>
+<tr>
+<td>PT 시연에 에뮬레이터 구동 화면 인정</td>
+<td>유의사항 공지</td>
+</tr>
+<tr>
+<td>Private 저장소 Collaborator 쓰기 권한 경고</td>
+<td>지원·제출 방법</td>
+</tr>
+<tr>
+<td>NaviHelper는 내비 탑재 차량에서만 완전 호환, TTS/STT는 공개되면 전
+차종 호환</td>
+<td>API Compatibility 문서</td>
+</tr>
+<tr>
+<td>Virtual Console 도메인별 조작 항목</td>
+<td>Virtual Console 가이드</td>
+</tr>
+<tr>
+<td>숏폼 해시태그 조건, 동의서 CC 노출, 수탁사 정보</td>
+<td>숏폼 안내, DOCX</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="수정조정한-내용" class="level2">
+<h2>수정·조정한 내용</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>항목</th>
+<th>기존</th>
+<th>조정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>수상 확률</td>
+<td>A: "계산할 근거 없음" / B: "PT까지 가면 50%"</td>
+<td>1차 경쟁률은 알 수 없고, PT 이후 비율과 선정 = 수상 구조는 공고로
+확정됨. 수상작 수 조정 가능성 유보를 함께 표기</td>
+</tr>
+<tr>
+<td>우선협상권 질문</td>
+<td>A: 기준 결과 발표일 확인</td>
+<td>12/18과 2027년 2월 중 어느 쪽인지 구체화</td>
+</tr>
+<tr>
+<td>의견 제외</td>
+<td>사실·의견·확인 필요를 색으로 구분해 표시</td>
+<td>사용자 요청으로 분석 의견·제안(아이디어 후보, 준비 일정, 최종 제안
+등)을 모두 제외하고 사실과 확인 필요 항목만 남김(2026-10-22). 제외 전
+버전: <code>hmg-analysis-merged.with-opinions.md</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="출처" class="level1">
+<h1>출처</h1>
+<p>아래 자료는 모두 공식 출처이며 조사 기준일은 2026년 10월 22일이다.
+문서의 버전, SDK 개방 상태, 일정과 세부 운영 조건은 이후 변경될 수
+있다.</p>
+</section>
+<section id="footnotes" class="footnotes footnotes-end-of-document"
+role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>자주 묻는 질문. <a
+href="https://appdevchallenge.auto-hmg.io/faq">원문</a><a href="#fnref1"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>일정·설명회. <a
+href="https://appdevchallenge.auto-hmg.io/guide/schedule">원문</a><a
+href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Pleos 프로젝트 생성 및 SDK 사용 신청. <a
+href="https://document.pleos.ai/docs/pleos-only/create-my-project">원문</a><a
+href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>공모전 개요. <a
+href="https://appdevchallenge.auto-hmg.io/guide/overview">원문</a><a
+href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>공모전 개발 환경 안내. <a
+href="https://appdevchallenge.auto-hmg.io/guide/development">원문</a><a
+href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p>공모전 개요. <a
+href="https://appdevchallenge.auto-hmg.io/guide/overview">원문</a><a
+href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p>공모전 참가 및 출품 유의사항 안내. <a
+href="https://appdevchallenge.auto-hmg.io/notice/c0a1a000-2026-4923-8000-000000000006">원문</a><a
+href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p>공모전 개요. <a
+href="https://appdevchallenge.auto-hmg.io/guide/overview">원문</a><a
+href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9"><p>현대자동차그룹 차량용 앱 개발 공모전 공식 홈페이지. <a
+href="https://appdevchallenge.auto-hmg.io/">원문</a><a href="#fnref9"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10"><p>공모전 참가 및 출품 유의사항 안내. <a
+href="https://appdevchallenge.auto-hmg.io/notice/c0a1a000-2026-4923-8000-000000000006">원문</a><a
+href="#fnref10" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn11"><p>심사·시상. <a
+href="https://appdevchallenge.auto-hmg.io/guide/judging-awards">원문</a><a
+href="#fnref11" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn12"><p>일정·설명회. <a
+href="https://appdevchallenge.auto-hmg.io/guide/schedule">원문</a><a
+href="#fnref12" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn13"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref13" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn14"><p>일정·설명회. <a
+href="https://appdevchallenge.auto-hmg.io/guide/schedule">원문</a><a
+href="#fnref14" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn15"><p>공모전 참가 및 출품 유의사항 안내. <a
+href="https://appdevchallenge.auto-hmg.io/notice/c0a1a000-2026-4923-8000-000000000006">원문</a><a
+href="#fnref15" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn16"><p>자주 묻는 질문. <a
+href="https://appdevchallenge.auto-hmg.io/faq">원문</a><a
+href="#fnref16" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn17"><p>심사·시상. <a
+href="https://appdevchallenge.auto-hmg.io/guide/judging-awards">원문</a><a
+href="#fnref17" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn18"><p>심사·시상. <a
+href="https://appdevchallenge.auto-hmg.io/guide/judging-awards">원문</a><a
+href="#fnref18" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn19"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref19" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn20"><p>Pleos Connect SDK Overview. <a
+href="https://document.pleos.ai/docs/pleos-only/connect-sdk-pleos/">원문</a><a
+href="#fnref20" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn21"><p>Pleos Connect Emulator 설치 및 실행. <a
+href="https://document.pleos.ai/docs/connect/guide/getting-started/application-development/setup-connect-sdk-emulator">원문</a><a
+href="#fnref21" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn22"><p>Pleos 프로젝트 생성 및 SDK 사용 신청. <a
+href="https://document.pleos.ai/docs/pleos-only/create-my-project">원문</a><a
+href="#fnref22" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn23"><p>Pleos 프로젝트 생성 및 SDK 사용 신청. <a
+href="https://document.pleos.ai/docs/pleos-only/create-my-project">원문</a><a
+href="#fnref23" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn24"><p>Pleos 프로젝트 생성 및 SDK 사용 신청. <a
+href="https://document.pleos.ai/docs/pleos-only/create-my-project">원문</a><a
+href="#fnref24" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn25"><p>API Compatibility &amp; Availability. <a
+href="https://document.pleos.ai/en/docs/pleos-only/vehicle-app-planning-guide/api-compatibility-availability">원문</a><a
+href="#fnref25" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn26"><p>공모전 개발 환경 안내. <a
+href="https://appdevchallenge.auto-hmg.io/guide/development">원문</a><a
+href="#fnref26" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn27"><p>NaviHelper SDK Introduction. <a
+href="https://document.pleos.ai/en/docs/pleos-only/connect-sdk-pleos/NaviHelper/intro">원문</a><a
+href="#fnref27" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn28"><p>API Compatibility &amp; Availability. <a
+href="https://document.pleos.ai/en/docs/pleos-only/vehicle-app-planning-guide/api-compatibility-availability">원문</a><a
+href="#fnref28" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn29"><p>API Compatibility &amp; Availability. <a
+href="https://document.pleos.ai/en/docs/pleos-only/vehicle-app-planning-guide/api-compatibility-availability">원문</a><a
+href="#fnref29" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn30"><p>Pleos Connect SDK Overview. <a
+href="https://document.pleos.ai/docs/pleos-only/connect-sdk-pleos/">원문</a><a
+href="#fnref30" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn31"><p>Driving Restriction Development Guide. 같은 문서 목차에
+"Implementing the Gleo Interface" 가이드가 있다. <a
+href="https://document.pleos.ai/en/docs/pleos-only/vehicle-app-developer-guide/driving-restriction-development-guide">원문</a><a
+href="#fnref31" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn32"><p>Pleos Connect Virtual Console User Guide. <a
+href="https://document.pleos.ai/en/docs/pleos-only/app-test-guide/virtual-console-guide">원문</a><a
+href="#fnref32" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn33"><p>Hyundai Motor Group Redefines In-Vehicle Experience
+with 'Pleos Connect' Next-Generation Infotainment System, 2026년 4월
+30일 공식 발표. <a
+href="https://www.hyundai.com/worldwide/en/newsroom/detail/0000001168">원문</a><a
+href="#fnref33" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn34"><p>Driving Restriction Development Guide. 같은 문서 목차에
+"Implementing the Gleo Interface" 가이드가 있다. <a
+href="https://document.pleos.ai/en/docs/pleos-only/vehicle-app-developer-guide/driving-restriction-development-guide">원문</a><a
+href="#fnref34" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn35"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref35" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn36"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref36" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn37"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref37" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn38"><p>지원·제출 방법. <a
+href="https://appdevchallenge.auto-hmg.io/guide/submission">원문</a><a
+href="#fnref38" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn39"><p>공모전 참가 및 출품 유의사항 안내. <a
+href="https://appdevchallenge.auto-hmg.io/notice/c0a1a000-2026-4923-8000-000000000006">원문</a><a
+href="#fnref39" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn40"><p>지원·제출 방법. <a
+href="https://appdevchallenge.auto-hmg.io/guide/submission">원문</a><a
+href="#fnref40" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn41"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref41" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn42"><p>지원·제출 방법. <a
+href="https://appdevchallenge.auto-hmg.io/guide/submission">원문</a><a
+href="#fnref42" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn43"><p>현대자동차그룹 차량용 앱 개발 공모전 공식 홈페이지. <a
+href="https://appdevchallenge.auto-hmg.io/">원문</a><a href="#fnref43"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn44"><p>지원·제출 방법. <a
+href="https://appdevchallenge.auto-hmg.io/guide/submission">원문</a><a
+href="#fnref44" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn45"><p>숏폼 챌린지. <a
+href="https://appdevchallenge.auto-hmg.io/guide/shortform">원문</a><a
+href="#fnref45" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn46"><p>공모전 참가 및 출품 유의사항 안내. <a
+href="https://appdevchallenge.auto-hmg.io/notice/c0a1a000-2026-4923-8000-000000000006">원문</a><a
+href="#fnref46" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn47"><p>서비스 이용약관. <a
+href="https://appdevchallenge.auto-hmg.io/terms">원문</a><a
+href="#fnref47" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn48"><p>공모전 접수양식 및 개인정보 수집·이용 동의서,
+DOCX(동의서 버전 1020 ver.). 접수 마감 23:59, 소개 자료 분량 제한 없음,
+심사자료 신원 정보 제외 안내를 직접 확인했다. <a
+href="https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx">원문</a><a
+href="#fnref48" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn49"><p>공모전 참가 및 출품 유의사항 안내. <a
+href="https://appdevchallenge.auto-hmg.io/notice/c0a1a000-2026-4923-8000-000000000006">원문</a><a
+href="#fnref49" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+    </article>
+  </main>
+</div>
+
+<button class="to-top" type="button" aria-label="맨 위로">↑</button>
+<script>
+(function () {
+  var doc = document.querySelector('.doc');
+  var toc = document.getElementById('toc');
+  var sidebar = document.getElementById('sidebar');
+  var toggle = document.querySelector('.toc-toggle');
+  var scrim = document.querySelector('.scrim');
+  var bar = document.querySelector('.progress-bar');
+  var current = document.querySelector('.current-section');
+  var toTop = document.querySelector('.to-top');
+  var narrow = window.matchMedia('(max-width: 1080px)');
+
+  // 넓은 표는 감싸서 표 안에서만 가로 스크롤
+  doc.querySelectorAll('table').forEach(function (t) {
+    var w = document.createElement('div');
+    w.className = 'table-wrap';
+    t.parentNode.insertBefore(w, t);
+    w.appendChild(t);
+  });
+
+  // 표에서 의견 열(opcol-N)의 셀 표시
+  doc.querySelectorAll('[class*="opcol-"]').forEach(function (box) {
+    var m = box.className.match(/opcol-(\d+)/);
+    if (!m) return;
+    box.querySelectorAll('tr').forEach(function (tr) {
+      var cell = tr.children[+m[1] - 1];
+      if (cell) cell.classList.add('op-col');
+    });
+  });
+
+  // 의견·확인 필요 섹션 제목에 꼬리표
+  function tag(el, cls, text) {
+    var t = document.createElement('span');
+    t.className = cls;
+    t.textContent = text;
+    el.appendChild(t);
+  }
+  doc.querySelectorAll('section.opinion > h1, section.opinion > h2').forEach(function (h) { tag(h, 'tag', '의견'); });
+  doc.querySelectorAll('section.unresolved > h1, section.unresolved > h2').forEach(function (h) { tag(h, 'tag', '확인 필요'); });
+
+  // 문장 단위 표시에 설명 툴팁
+  doc.querySelectorAll('span.op').forEach(function (e) { e.title = '분석 의견'; });
+  doc.querySelectorAll('span.unv').forEach(function (e) { e.title = '확인 필요: 출처로 확인하지 못한 내용'; });
+  doc.querySelectorAll('span.fact').forEach(function (e) { e.title = '사실: 공식 출처로 확인'; });
+
+  // 범례의 개수
+  var nUnv = doc.querySelectorAll('div.unv, span.unv, section.unresolved').length;
+  var cu = document.querySelector('.count-unv');
+  if (cu) cu.textContent = '본문 ' + nUnv + '곳';
+
+  // D-day와 타임라인 상태를 오늘 날짜 기준으로 계산
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  function daysUntil(s) {
+    var p = s.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return Math.round((d - today) / 86400000);
+  }
+  document.querySelectorAll('.countdown').forEach(function (el) {
+    var n = daysUntil(el.dataset.date);
+    var v = el.querySelector('.cd-value');
+    if (n > 0) v.textContent = 'D-' + n;
+    else if (n === 0) v.textContent = 'D-DAY';
+    else { v.textContent = '종료'; el.classList.add('past'); }
+  });
+  var nextMarked = false;
+  document.querySelectorAll('.timeline li').forEach(function (li) {
+    var n = daysUntil(li.dataset.date);
+    if (n < 0) li.classList.add('done');
+    else if (!nextMarked) { li.classList.add('next'); nextMarked = true; }
+  });
+
+  // 목차 서랍 (좁은 화면)
+  function setOpen(open) {
+    document.body.classList.toggle('toc-open', open);
+    scrim.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) scrollTocTo(activeLink, true);
+  }
+  toggle.addEventListener('click', function () {
+    setOpen(!document.body.classList.contains('toc-open'));
+  });
+  scrim.addEventListener('click', function () { setOpen(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+
+  // 앵커 이동 시 대상 제목을 잠깐 강조 (같은 앵커를 다시 눌러도 동작)
+  function flash(id) {
+    var target = document.getElementById(id);
+    if (!target) return;
+    var h = target.matches('section') ? target.querySelector('h1, h2, h3') : target;
+    if (!h) return;
+    h.classList.remove('flash');
+    void h.offsetWidth;
+    h.classList.add('flash');
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var id = decodeURIComponent(a.getAttribute('href').slice(1));
+    if (narrow.matches && sidebar.contains(a)) setOpen(false);
+    if (id) setTimeout(function () { flash(id); }, 50);
+  });
+
+  // 스크롤 위치에 맞춰 목차 항목 강조
+  var links = Array.prototype.slice.call(toc.querySelectorAll('a'));
+  var targets = links.map(function (a) {
+    return document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));
+  });
+  links.forEach(function (a, i) {
+    a.dataset.label = a.textContent.replace(/\s+/g, ' ').trim();
+    var sec = targets[i];
+    if (!sec) return;
+    if (sec.classList.contains('opinion')) tag(a, 'toc-tag op', '의견');
+    else if (sec.classList.contains('unresolved')) tag(a, 'toc-tag unv', '확인 필요');
+  });
+  var activeLink = null;
+
+  function scrollTocTo(link, center) {
+    if (!link) return;
+    var lr = link.getBoundingClientRect();
+    var sr = sidebar.getBoundingClientRect();
+    var pad = 48;
+    if (center) {
+      sidebar.scrollTop += lr.top - sr.top - sr.height / 3;
+    } else if (lr.top < sr.top + pad) {
+      sidebar.scrollTop -= (sr.top + pad) - lr.top;
+    } else if (lr.bottom > sr.bottom - pad) {
+      sidebar.scrollTop += lr.bottom - (sr.bottom - pad);
+    }
+  }
+
+  function update() {
+    var y = window.scrollY;
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (max > 0 ? Math.min(100, y / max * 100) : 0) + '%';
+    toTop.classList.toggle('show', y > 900);
+
+    var line = 120;
+    var idx = -1;
+    for (var i = 0; i < targets.length; i++) {
+      if (targets[i] && targets[i].getBoundingClientRect().top <= line) idx = i;
+    }
+    if (max - y < 4) idx = targets.length - 1;
+    var link = idx >= 0 ? links[idx] : null;
+    if (link === activeLink) return;
+    if (activeLink) activeLink.classList.remove('active');
+    toc.querySelectorAll('.active-parent').forEach(function (p) { p.classList.remove('active-parent'); });
+    activeLink = link;
+    if (!link) { current.textContent = ''; return; }
+    link.classList.add('active');
+    var parentLi = link.closest('ul').closest('li');
+    var parentLink = parentLi ? parentLi.querySelector(':scope > a') : null;
+    if (parentLink) parentLink.classList.add('active-parent');
+    current.textContent = (parentLink ? parentLink.dataset.label + ' · ' : '') + link.dataset.label;
+    if (!narrow.matches) scrollTocTo(link, false);
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { ticking = false; update(); });
+  }, { passive: true });
+  window.addEventListener('resize', update);
+  narrow.addEventListener('change', function () { setOpen(false); });
+
+  toTop.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
+
+  update();
+  if (location.hash) flash(decodeURIComponent(location.hash.slice(1)));
+})();
+</script>
+</body>
+</html>
