@@ -1,0 +1,1383 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>드라이브 쉐도잉 피칭</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* ===========================================
+   THEME
+   Pleos Connect 밝은 화면에서 가져온 색. 강조는 색이 아니라 굵기와 회색 대비로 한다.
+   주황(--pleos)은 GNB에서 '지금 실행 중인 앱'을 가리키는 밑줄에만 쓴다 → 장마다 핵심 한 구절에만.
+   초록·빨강·노랑은 앱 상태색(말할 차례·기다리는 중·듣기만)일 때만 쓴다.
+   =========================================== */
+:root {
+  --stage-bg: #cfcdc8;
+  --slide-bg: #e8e7e3;
+  --ink: #141414;
+  --ink-2: #4f5156;
+  --muted: #8a8c91;
+  --hair: rgba(20,20,20,.16);
+  --screen: #f7f7f7;
+  --pleos: #ff9500;
+  --go: #16a34a;
+  --wait: #e5484d;
+  --listen: #c98a12;
+  --font: "Asta Sans", sans-serif;
+  --mono: "IBM Plex Mono", monospace;
+  --ease: cubic-bezier(.2,.7,.1,1);
+
+  /* 타임랩스(6장) 이전 스타일이 쓰는 이름 */
+  --text: var(--ink); --text-2: var(--ink-2); --line: var(--hair); --panel: #fff; --panel-2: #f1f0ec; --accent: var(--ink); --good: var(--go);
+}
+* { box-sizing: border-box; }
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Include this ENTIRE file in every presentation.
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+
+/* 1. Lock the browser viewport */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 2. Full-window deck viewport */
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 3. Fixed 16:9 design canvas.
+   JavaScript sets transform: translate(...) scale(...). */
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+
+/* 4. Slides stack inside the fixed stage.
+   Content must be laid out at 1920×1080, not reflowed per device. */
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+/* 5. Keep media inside authored slide bounds */
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 6. Presentation chrome stays outside the slide design system */
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+/* 7. Print one fixed-size slide per page */
+@media print {
+    html,
+    body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-viewport {
+        position: static;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-stage {
+        position: static;
+        width: auto;
+        height: auto;
+        transform: none !important;
+        background: none;
+    }
+
+    .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .slide:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+
+    .deck-controls {
+        display: none !important;
+    }
+}
+
+/* 8. Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+
+/* ===========================================
+   SLIDE GRAMMAR
+   =========================================== */
+body { font-family: var(--font); color: var(--ink); word-break: keep-all; -webkit-font-smoothing: antialiased; }
+.slide { font-family: var(--font); color: var(--ink); }
+.slide p, .slide h1, .slide h2, .slide h3 { margin: 0; }
+.frame { position: absolute; left: 120px; right: 120px; top: 110px; bottom: 120px; }
+
+/* 헤드라인: 앞은 회색, 핵심은 검정 */
+.h { font-size: 80px; font-weight: 800; letter-spacing: -.035em; line-height: 1.16; }
+.h .g, .g { color: var(--muted); }
+.h.m { font-size: 64px; }
+.h.s { font-size: 52px; }
+/* 핵심 한 구절: Pleos GNB의 실행 중 표시와 같은 주황 밑줄 */
+.mk { text-decoration: underline; text-decoration-color: var(--pleos); text-decoration-thickness: .1em; text-underline-offset: .16em; text-decoration-skip-ink: none; }
+
+.punch { font-size: 40px; font-weight: 700; letter-spacing: -.02em; line-height: 1.35; }
+.src { position: absolute; left: 120px; right: 360px; bottom: 44px; font-size: 17px; line-height: 1.5; color: var(--muted); }
+.chrome { position: absolute; right: 120px; bottom: 44px; font-size: 18px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chrome b { color: var(--ink); font-weight: 700; margin-right: 18px; }
+.hair { height: 1px; background: var(--hair); }
+.ok { color: var(--go); font-weight: 700; }
+.tag-as { color: var(--listen); font-weight: 700; }
+
+/* 들어오는 움직임: 활성 슬라이드에서만 차례로 */
+.rv { opacity: 0; transform: translateY(28px); transition: opacity .6s var(--ease), transform .7s var(--ease); }
+.slide.visible .rv { opacity: 1; transform: none; }
+.slide.visible .rv.d1 { transition-delay: .08s; } .slide.visible .rv.d2 { transition-delay: .18s; }
+.slide.visible .rv.d3 { transition-delay: .28s; } .slide.visible .rv.d4 { transition-delay: .38s; }
+.slide.visible .rv.d5 { transition-delay: .48s; }
+.slide { transition: opacity .35s ease; }
+
+/* ===========================================
+   01 COVER
+   =========================================== */
+.cover .kicker { position: absolute; left: 120px; top: 150px; font-size: 26px; font-weight: 600; color: var(--ink-2); }
+.cover h1 { position: absolute; left: 114px; top: 210px; font-size: 150px; font-weight: 800; line-height: 1.04; letter-spacing: -.04em; }
+.cover .sub { position: absolute; left: 120px; top: 548px; font-size: 46px; font-weight: 700; letter-spacing: -.02em; }
+.cover .say { position: absolute; left: 120px; top: 636px; width: 580px; font-size: 30px; line-height: 1.55; color: var(--ink-2); font-weight: 500; }
+.cover .say b { color: var(--ink); font-weight: 700; }
+.cover .meta { position: absolute; left: 120px; bottom: 96px; display: flex; gap: 40px; font-size: 24px; color: var(--ink-2); }
+.cover .meta b { color: var(--ink); font-weight: 700; margin-left: 10px; }
+.cover .dev { position: absolute; left: 760px; top: 236px; font-size: 10.6px; }
+
+/* ===========================================
+   02 NUMBERS
+   =========================================== */
+.n74 { position: absolute; left: 0; top: 150px; display: flex; align-items: flex-end; }
+.n74 b { font-size: 420px; font-weight: 800; letter-spacing: -.06em; line-height: .78; font-variant-numeric: tabular-nums; }
+.n74 span { font-size: 110px; font-weight: 800; letter-spacing: -.03em; margin: 0 0 6px 18px; }
+.n74-k { position: absolute; left: 0; top: 520px; font-size: 40px; font-weight: 700; letter-spacing: -.02em; }
+.facts { position: absolute; left: 1000px; right: 0; top: 150px; }
+.fact { padding: 34px 0; border-top: 1px solid var(--hair); }
+.fact:last-child { border-bottom: 1px solid var(--hair); }
+.fact .v { font-size: 92px; font-weight: 800; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.fact .v small { font-size: 40px; font-weight: 700; margin-left: 8px; letter-spacing: -.02em; }
+.fact .k { font-size: 27px; color: var(--ink-2); margin-top: 14px; line-height: 1.45; }
+
+/* ===========================================
+   03 PLACES
+   =========================================== */
+.places { position: absolute; left: 0; right: 0; top: 330px; display: grid; grid-template-columns: repeat(4, 1fr); }
+.place { padding: 8px 40px 0 0; margin-right: 40px; border-right: 1px solid var(--hair); min-height: 250px; }
+.place:last-child { border-right: 0; margin-right: 0; }
+.place b { display: block; font-size: 64px; font-weight: 800; letter-spacing: -.035em; color: #b5b6b9; }
+.place p { font-size: 28px; line-height: 1.5; color: var(--muted); margin-top: 18px; }
+.place.me b { color: var(--ink); }
+.place.me p { color: var(--ink-2); }
+.p3 .punch { position: absolute; left: 0; top: 740px; }
+.voice { position: absolute; left: 0; right: 0; top: 610px; padding: 22px 30px; border: 2px dashed var(--pleos); border-radius: 8px; font-size: 26px; color: var(--ink-2); }
+.voice b { color: var(--ink); }
+
+/* ===========================================
+   04 MARKET
+   =========================================== */
+.mkt { position: absolute; left: 0; right: 0; top: 330px; display: grid; grid-template-columns: 1fr 1fr; }
+.mkt > div { padding-right: 70px; }
+.mkt > div + div { padding: 0 0 0 70px; border-left: 1px solid var(--hair); }
+.mkt .lab { font-size: 26px; font-weight: 700; color: var(--ink-2); }
+.mkt .big { font-size: 112px; font-weight: 800; letter-spacing: -.045em; line-height: 1.05; margin-top: 18px; }
+.mkt .big.zero { color: var(--ink); }
+.mkt .pre { font-size: 34px; font-weight: 700; color: var(--muted); margin-top: 18px; }
+.mkt .pre + .big { margin-top: 2px; font-size: 104px; }
+.mkt .cap { font-size: 27px; color: var(--ink-2); line-height: 1.5; margin-top: 14px; }
+.mkt .now { margin-top: 30px; }
+.mkt .now div { display: grid; grid-template-columns: 150px 1fr; padding: 16px 0; border-top: 1px solid var(--hair); font-size: 26px; line-height: 1.45; }
+.mkt .now b { font-weight: 700; }
+.mkt .now span { color: var(--ink-2); }
+.p4 .punch { position: absolute; left: 0; top: 700px; }
+
+/* ===========================================
+   05 THREE VERBS (실제 화면 3장)
+   =========================================== */
+.verbs3 { position: absolute; left: 0; right: 0; top: 250px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 50px; }
+.verbs3 .dev { font-size: 5.18px; }
+.verbs3 .w { font-size: 72px; font-weight: 800; letter-spacing: -.04em; margin-top: 46px; }
+.verbs3 .w.wait { color: var(--wait); } .verbs3 .w.go { color: var(--go); }
+.verbs3 p { font-size: 28px; line-height: 1.5; color: var(--ink-2); margin-top: 12px; }
+
+/* ===========================================
+   06 DAY (기존 타임랩스를 1600 무대 그대로 1.2배)
+   =========================================== */
+.legacy { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; transform: scale(1.2); transform-origin: 0 0; padding: 70px 100px 0; }
+.legacy .h { font-size: 52px; margin-bottom: 26px; }
+.tl-grid { display: grid; grid-template-columns: 940px 1fr; gap: 44px; align-items: center; }
+.tl-dev { position: relative; }
+.ck { position: relative; width: 940px; height: 566px; border-radius: 22px; overflow: hidden; background: #17191d; transition: opacity .5s ease; box-shadow: 0 30px 60px -28px rgba(0,0,0,.45); }
+.tl-dev.dim .ck { opacity: .2; }
+.ck-ws { position: absolute; left: 0; right: 0; top: 0; height: 300px; overflow: hidden; clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%); }
+.ck-ws svg { width: 100%; height: 100%; display: block; max-width: none; max-height: none; }
+.ck-rain { position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease; pointer-events: none;
+  background: radial-gradient(circle at 20% 30%, rgba(255,255,255,.55) 0 2px, transparent 3px), radial-gradient(circle at 70% 60%, rgba(255,255,255,.45) 0 2.5px, transparent 3.5px), radial-gradient(circle at 45% 80%, rgba(255,255,255,.4) 0 1.5px, transparent 2.5px), repeating-linear-gradient(100deg, transparent 0 22px, rgba(255,255,255,.14) 22px 23px);
+  background-size: 64px 70px, 92px 84px, 50px 58px, auto; }
+.ck.rain-on .ck-rain { opacity: 1; animation: ckRain .6s linear infinite; }
+@keyframes ckRain { to { background-position: -12px 70px, -18px 84px, -8px 58px, 0 0; } }
+.ck-wiper { position: absolute; left: 230px; top: 292px; width: 430px; height: 9px; margin-top: -4px; border-radius: 5px; background: #0d0e10; transform-origin: 0 50%; transform: rotate(-4deg); opacity: 0; }
+.ck.rain-on .ck-wiper { opacity: 1; animation: ckWipe 1.3s ease-in-out infinite alternate; }
+@keyframes ckWipe { from { transform: rotate(-4deg); } to { transform: rotate(-78deg); } }
+.ck-mirror { position: absolute; left: 540px; top: 8px; width: 120px; height: 36px; border-radius: 10px; background: #2b2e33; border: 3px solid #121315; }
+.ck-dash { position: absolute; left: -40px; right: -40px; top: 268px; bottom: 0; background: linear-gradient(180deg, #2a2d32, #1b1d21 40%); border-radius: 50% 50% 0 0 / 46px 46px 0 0; }
+.ck-wheel { position: absolute; left: 28px; top: 300px; width: 330px; height: 330px; border-radius: 50%; border: 26px solid #0e0f12; box-shadow: inset 0 0 0 2px #2c3036; }
+.ck-wheel::after { content: ""; position: absolute; left: 50%; top: 55%; width: 120px; height: 70px; transform: translate(-50%, -50%); border-radius: 20px; background: #0e0f12; }
+.ck-sig { position: absolute; left: 150px; top: 330px; width: 44px; height: 44px; fill: #34383e; }
+.ck.sig-on .ck-sig { animation: ckSig .8s steps(1) infinite; }
+@keyframes ckSig { 0% { fill: #22c55e; filter: drop-shadow(0 0 8px #22c55e); } 50% { fill: #34383e; filter: none; } }
+.ck-screen { position: absolute; right: 22px; bottom: 16px; font-size: 5.6px; }
+.ck-tag { position: absolute; font-size: 13px; font-weight: 700; color: #fff; background: rgba(0,0,0,.45); padding: 4px 10px; border-radius: 6px; }
+.ck-tag-out { left: 60px; top: 14px; } .ck-tag-in { right: 30px; top: 200px; z-index: 2; }
+.tl-dev .hu-sig path[fill="#22c55e"] { animation: huBlink .8s steps(1) infinite; }
+@keyframes huBlink { 50% { fill: #c9ccd1; } }
+@media (prefers-reduced-motion: reduce) { .ck.rain-on .ck-rain, .ck.rain-on .ck-wiper, .ck.sig-on .ck-sig, .tl-dev .hu-sig path { animation: none; } }
+.tl-phone { position: absolute; left: 50%; top: 50%; width: 250px; height: 500px; border-radius: 40px; background: #111; padding: 10px; transform: translate(-50%, -46%) scale(.92); opacity: 0; transition: opacity .5s ease, transform .5s ease; box-shadow: 0 30px 60px -20px rgba(0,0,0,.45); z-index: 3; }
+.tl-phone.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.tlp { width: 100%; height: 100%; border-radius: 31px; background: #fff; padding: 40px 20px 18px; font-family: var(--font); color: #111; }
+.tlp small { font-size: 13px; color: #8a8a86; font-weight: 600; }
+.tlp h4 { font-size: 19px; margin: 4px 0 12px; }
+.tlp-score { font-size: 76px; font-weight: 800; letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.tlp-score span { font-size: 18px; color: #8a8a86; margin-left: 4px; letter-spacing: 0; }
+.tlp-row { display: flex; justify-content: space-between; font-size: 13px; padding: 11px 0; border-bottom: 1px solid #eee; }
+.tlp-row b { color: #15803d; } .tlp-row.w b { color: #dc2626; }
+.tlp-foot { font-size: 12px; color: #8a8a86; margin-top: 10px; text-align: center; }
+.tl-side { display: flex; flex-direction: column; }
+.tl-clock { font-size: 112px; font-weight: 800; letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.tl-cap { font-size: 28px; font-weight: 700; line-height: 1.4; margin-top: 18px; min-height: 118px; letter-spacing: -.01em; }
+.replay { margin-top: 10px; align-self: flex-start; border: 0; border-bottom: 1px solid var(--hair); background: none; color: var(--ink-2); font: inherit; font-size: 17px; font-weight: 600; padding: 6px 0; cursor: pointer; }
+.replay:hover { color: var(--ink); }
+.dayline { position: relative; margin-top: 22px; height: 60px; }
+.dl-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; background: rgba(20,20,20,.12); }
+.dl-fill { height: 100%; width: 0; background: var(--ink); }
+.dl-marks span { position: absolute; top: 0; transform: translateX(-50%); text-align: center; font-size: 18px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 26px; white-space: nowrap; transition: color .3s; }
+.dl-marks span::before { content: ""; position: absolute; top: 5px; left: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translateX(-50%); background: var(--slide-bg); border: 2px solid #b9b7b1; transition: background .3s, border-color .3s; }
+.dl-marks span.on { color: var(--ink); }
+.dl-marks span.on::before { background: var(--ink); border-color: var(--ink); }
+
+/* ===========================================
+   07·08 EPISODES (목업이 주인공: 큰 화면 1 + 작은 화면 2)
+   =========================================== */
+.ep .main { position: absolute; left: 0; top: 190px; font-size: 10.8px; }
+.ep .cap { position: absolute; left: 0; top: 822px; width: 1080px; font-size: 26px; line-height: 1.45; color: var(--ink-2); }
+.ep .cap b, .ep .side b { color: var(--ink); font-weight: 800; margin-right: 12px; font-variant-numeric: tabular-nums; }
+.ep .side { position: absolute; right: 0; top: 190px; width: 500px; display: grid; gap: 26px; }
+.ep .side p { font-size: 23px; font-weight: 600; color: var(--ink-2); margin-bottom: 10px; white-space: nowrap; }
+.ep .side .dev { font-size: 5px; }
+.ep .side .hu { box-shadow: 0 1.6em 3em -1.6em rgba(0,0,0,.4); }
+
+/* ===========================================
+   08 VEHICLE SIGNALS
+   =========================================== */
+.vsig { position: absolute; left: 0; right: 0; top: 250px; display: grid; grid-template-columns: 1fr 340px 1fr; align-items: center; }
+.vsig .col > div { padding: 26px 0; border-top: 1px solid var(--hair); }
+.vsig .col > div:last-child { border-bottom: 1px solid var(--hair); }
+.vsig .col.l { text-align: right; padding-right: 30px; } .vsig .col.r { padding-left: 30px; }
+.vsig b { display: block; font-size: 44px; font-weight: 800; letter-spacing: -.03em; }
+.vsig span { display: block; font-size: 24px; color: var(--ink-2); margin-top: 6px; }
+.vsig span em { font-style: normal; color: var(--go); font-weight: 700; }
+.carfig { display: grid; place-items: center; }
+.carfig svg { width: 220px; height: 418px; max-height: none; }
+.carfig .blink { animation: blinkL 1s steps(1) infinite; }
+@keyframes blinkL { 0% { fill: #f59e0b; } 50% { fill: #c9ccd1; } }
+.p8 .punch { position: absolute; left: 0; right: 0; top: 780px; text-align: center; }
+
+/* ===========================================
+   09 STT
+   =========================================== */
+.stt { position: absolute; left: 0; right: 0; top: 300px; display: grid; grid-template-columns: 1fr 120px 1fr; align-items: center; }
+.stt small { display: block; font-size: 22px; font-weight: 700; color: var(--muted); margin-bottom: 18px; }
+.stt .said { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; }
+.wv { display: flex; gap: 8px; align-items: center; height: 70px; margin-bottom: 22px; }
+.wv i { width: 10px; border-radius: 5px; background: var(--ink); height: 20px; }
+.wv i:nth-child(3n) { height: 52px; } .wv i:nth-child(4n) { height: 36px; } .wv i:nth-child(5n) { height: 64px; }
+.stt .to { height: 2px; background: var(--ink); position: relative; margin: 0 26px; }
+.stt .to::after { content: ""; position: absolute; right: -2px; top: -9px; border: 10px solid transparent; border-left: 16px solid var(--ink); border-right: 0; }
+.stt code { display: block; font-family: var(--mono); font-size: 36px; line-height: 1.4; padding: 26px 30px; background: #fff; border-radius: 6px; }
+.stt .lat { margin-top: 20px; font-size: 28px; font-weight: 700; color: var(--go); }
+.stt .lat b { font-size: 44px; font-weight: 800; letter-spacing: -.03em; }
+.stt-note { position: absolute; left: 0; top: 700px; font-size: 26px; color: var(--ink-2); }
+.trio { position: absolute; left: 0; right: 0; top: 700px; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--hair); }
+.trio div { padding: 30px 40px 0 0; }
+.trio div + div { padding-left: 40px; border-left: 1px solid var(--hair); }
+.trio b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+.trio span { display: block; font-size: 24px; color: var(--ink-2); margin-top: 10px; line-height: 1.45; }
+
+/* ===========================================
+   10 BUSINESS
+   =========================================== */
+.biz { position: absolute; left: 0; right: 0; top: 260px; display: grid; grid-template-columns: 1fr 1.05fr; gap: 0; }
+.biz .l { padding-right: 70px; }
+.biz .r { padding-left: 70px; border-left: 1px solid var(--hair); }
+.kpi { padding: 0 0 28px; }
+.kpi + .kpi { padding-top: 28px; border-top: 1px solid var(--hair); }
+.kpi .v { font-size: 96px; font-weight: 800; letter-spacing: -.045em; line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi .v small { font-size: 40px; margin-left: 8px; letter-spacing: -.02em; }
+.kpi .k { font-size: 25px; color: var(--ink-2); margin-top: 12px; }
+.biz .note { font-size: 24px; line-height: 1.55; color: var(--ink-2); padding-top: 24px; border-top: 1px solid var(--hair); }
+.biz .note b { color: var(--ink); }
+.biz h3 { font-size: 24px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.rev div { display: grid; grid-template-columns: 52px 1fr; padding: 22px 0; border-bottom: 1px solid var(--hair); font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+.rev div i { font-style: normal; font-size: 26px; color: var(--muted); padding-top: 6px; }
+.rev div span { display: block; grid-column: 2; font-size: 23px; font-weight: 500; color: var(--ink-2); letter-spacing: 0; margin-top: 6px; }
+.more { margin-top: 40px; }
+.more p { font-size: 30px; font-weight: 700; line-height: 1.5; }
+.more p span { color: var(--muted); font-weight: 500; margin: 0 10px; }
+
+/* ===========================================
+   11 SDK WIRING (신호 → 앱 상태)
+   =========================================== */
+.wire { position: absolute; left: 0; right: 0; top: 160px; }
+.p9w .punch { position: absolute; left: 0; top: 780px; }
+.wire > div { display: grid; grid-template-columns: 380px 520px 80px 1fr; align-items: baseline; padding: 15px 0; border-top: 1px solid var(--hair); }
+.wire > div:last-child { border-bottom: 1px solid var(--hair); }
+.wire .head { border-top: 0; padding-top: 0; font-size: 19px; font-weight: 700; color: var(--muted); }
+.wire .head span { font-size: 19px; }
+.wire b { font-size: 29px; font-weight: 800; letter-spacing: -.02em; }
+.wire code { font-family: var(--mono); font-size: 18px; color: var(--ink-2); }
+.wire i { font-style: normal; color: var(--muted); font-size: 24px; }
+.wire .st { font-size: 28px; font-weight: 800; }
+.wire .st::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; vertical-align: 4px; background: currentColor; }
+.wire .st.wait { color: var(--wait); } .wire .st.listen { color: var(--listen); } .wire .st.go { color: var(--go); } .wire .st.ink { color: var(--ink); }
+.wire span { font-size: 22px; color: var(--ink-2); }
+
+/* ===========================================
+   12 RETENTION · ACQUISITION
+   =========================================== */
+.ret3 { position: absolute; left: 0; right: 0; top: 245px; display: grid; grid-template-columns: 1fr 1fr 1fr; }
+.ret3 > div { padding-right: 50px; }
+.ret3 > div + div { padding-left: 50px; border-left: 1px solid var(--hair); }
+.ret3 h3 { font-size: 24px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.ret3 .r { padding: 20px 0; border-bottom: 1px solid var(--hair); }
+.ret3 .r b { display: block; font-size: 32px; font-weight: 800; letter-spacing: -.02em; }
+.ret3 .r span { display: block; font-size: 22px; line-height: 1.45; color: var(--ink-2); margin-top: 6px; }
+.ret3 .r.num { display: grid; grid-template-columns: 1fr auto; align-items: baseline; }
+.ret3 .r.num b { font-size: 30px; }
+.ret3 .r.num em { font-style: normal; font-size: 64px; font-weight: 800; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.ret3 .r.num span { grid-column: 1 / -1; margin-top: 0; }
+.ret3 .as { margin-top: 18px; font-size: 20px; line-height: 1.5; color: var(--listen); font-weight: 600; }
+
+.ret4 { position: absolute; left: 0; right: 0; top: 330px; display: grid; grid-template-columns: repeat(4, 1fr); }
+.ret4 > div { padding: 0 40px 0 0; }
+.ret4 > div + div { padding-left: 40px; border-left: 1px solid var(--hair); }
+.ret4 p { font-size: 30px; font-weight: 700; color: var(--ink-2); }
+.ret4 b { display: block; font-size: 150px; font-weight: 800; letter-spacing: -.05em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.ret4 span { display: block; font-size: 22px; color: var(--muted); margin-top: 8px; }
+.ret-k { position: absolute; left: 0; top: 640px; font-size: 26px; color: var(--ink-2); }
+
+/* ===========================================
+   13 GROWTH · REVENUE
+   =========================================== */
+.mau { margin-top: 6px; }
+.mau > div { display: grid; grid-template-columns: 250px 1fr auto; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--hair); }
+.mau .k { font-size: 25px; font-weight: 700; }
+.mau .k small { display: block; font-size: 18px; font-weight: 500; color: var(--muted); }
+.mau .v { font-size: 56px; font-weight: 800; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.mau .v small { font-size: 26px; margin-left: 6px; letter-spacing: 0; }
+.mau .rg { font-size: 20px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mau.big2 .v { font-size: 96px; }
+.mau.big2 > div { grid-template-columns: 260px 1fr; padding: 22px 0; }
+.mau-f { font-size: 19px; line-height: 1.5; color: var(--muted); margin-top: 14px; }
+.goal { margin-top: 40px; font-size: 26px; color: var(--ink-2); }
+.goal b { font-size: 40px; font-weight: 800; color: var(--ink); letter-spacing: -.03em; margin-right: 12px; }
+
+/* ===========================================
+   11 SCORE TABLE
+   =========================================== */
+.score { position: absolute; left: 0; right: 0; top: 220px; width: 100%; border-collapse: collapse; }
+.score th { text-align: left; font-size: 20px; font-weight: 700; color: var(--muted); padding: 0 24px 16px 0; border-bottom: 2px solid var(--ink); }
+.score td { padding: 30px 24px 30px 0; border-bottom: 1px solid var(--hair); font-size: 27px; line-height: 1.4; color: var(--ink-2); vertical-align: top; }
+.score td:first-child { font-size: 36px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; width: 260px; }
+.score td:nth-child(2) { width: 560px; font-size: 22px; color: var(--muted); padding-top: 36px; }
+.score td:nth-child(3) { color: var(--ink); }
+.score td i { font-style: normal; font-size: 20px; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+.p11 .punch { position: absolute; left: 0; top: 800px; font-size: 34px; }
+
+/* ===========================================
+   12 PLAN
+   =========================================== */
+.road { position: absolute; left: 0; right: 0; top: 250px; display: grid; grid-template-columns: repeat(7, 1fr); }
+.road::before { content: ""; position: absolute; left: 0; right: 0; top: 66px; height: 2px; background: var(--hair); }
+.road div { position: relative; padding-right: 22px; }
+.road .dt { font-size: 32px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; height: 52px; }
+.road div::before { content: ""; position: absolute; left: 0; top: 58px; width: 18px; height: 18px; border-radius: 50%; background: var(--slide-bg); border: 2px solid var(--ink); }
+.road .done::before { background: var(--ink); }
+.road .key::before { background: var(--pleos); border-color: var(--pleos); }
+.road .key .dt { text-decoration: underline; text-decoration-color: var(--pleos); text-decoration-thickness: 5px; text-underline-offset: 8px; }
+.road .dd { font-size: 26px; line-height: 1.45; color: var(--ink-2); margin-top: 44px; }
+.road .done .dd { color: var(--ink); }
+.risks { position: absolute; left: 0; right: 0; top: 560px; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--hair); }
+.risks div { padding: 24px 40px 0 0; font-size: 24px; line-height: 1.5; color: var(--ink-2); }
+.risks div + div { padding-left: 40px; border-left: 1px solid var(--hair); }
+.risks b { display: block; font-size: 30px; color: var(--ink); font-weight: 800; margin-bottom: 6px; }
+.risks b em { font-style: normal; color: var(--wait); font-size: 20px; margin-right: 12px; vertical-align: 3px; }
+.roles { position: absolute; left: 0; right: 0; top: 760px; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--ink); }
+.roles div { padding: 22px 30px 0 0; font-size: 22px; color: var(--ink-2); line-height: 1.45; }
+.roles b { display: block; font-size: 30px; color: var(--ink); font-weight: 800; margin-bottom: 4px; }
+
+/* ===========================================
+   13 CLOSE
+   =========================================== */
+.close .big { position: absolute; left: 0; top: 0; font-size: 104px; font-weight: 800; letter-spacing: -.045em; line-height: 1.12; }
+.qs { position: absolute; left: 0; right: 0; top: 330px; }
+.qs .lab { font-size: 24px; font-weight: 700; color: var(--muted); margin-bottom: 12px; }
+.qs > div:not(.lab) { display: grid; grid-template-columns: 70px 1fr 600px; padding: 22px 0; border-top: 1px solid var(--hair); align-items: baseline; }
+.qs > div:last-child { border-bottom: 1px solid var(--hair); }
+.qs i { font-style: normal; font-size: 30px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.qs b { font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+.qs span { font-size: 25px; color: var(--ink-2); }
+.qs span em { font-style: normal; font-weight: 800; color: var(--go); margin-right: 10px; }
+.qs span em.hyp { color: var(--listen); }
+.close .ask { position: absolute; left: 0; top: 780px; font-size: 36px; font-weight: 800; letter-spacing: -.02em; }
+
+/* ===========================================
+   14–16 APPENDIX
+   =========================================== */
+.refs { position: absolute; left: 0; right: 0; top: 200px; list-style: none; padding: 0; margin: 0; counter-reset: r; }
+.refs li { counter-increment: r; display: grid; grid-template-columns: 60px 1fr; padding: 16px 0; border-top: 1px solid var(--hair); font-size: 24px; line-height: 1.5; color: var(--ink-2); }
+.refs li::before { content: counter(r, decimal-leading-zero); font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.refs li:last-child { border-bottom: 1px solid var(--hair); }
+.qa { position: absolute; left: 0; right: 0; top: 200px; }
+.qa div { display: grid; grid-template-columns: 640px 1fr; gap: 50px; padding: 17px 0; border-top: 1px solid var(--hair); font-size: 23px; line-height: 1.45; }
+.qa div:last-child { border-bottom: 1px solid var(--hair); }
+.qa .q { font-weight: 800; font-size: 25px; }
+.qa .a { color: var(--ink-2); }
+.qa .a b { color: var(--ink); }
+.fn2 { position: absolute; left: 0; right: 0; top: 230px; display: grid; grid-template-columns: 1fr 1.15fr; gap: 0; }
+.fn2 > div { padding-right: 60px; }
+.fn2 > div + div { padding: 0 0 0 60px; border-left: 1px solid var(--hair); }
+.fn2 h3 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 18px; }
+.tb { width: 100%; border-collapse: collapse; font-size: 25px; }
+.tb th { text-align: left; font-size: 18px; color: var(--muted); font-weight: 700; padding: 0 10px 12px 0; border-bottom: 2px solid var(--ink); }
+.tb td { padding: 16px 10px 16px 0; border-bottom: 1px solid var(--hair); color: var(--ink-2); }
+.tb td.n { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tb td.k { font-size: 18px; color: var(--muted); text-align: right; }
+.tb tr.hl td { color: var(--ink); font-weight: 700; }
+.tb tr.hl td:first-child { text-decoration: underline; text-decoration-color: var(--pleos); text-decoration-thickness: 4px; text-underline-offset: 6px; }
+.fn2 .f { font-size: 18px; color: var(--muted); line-height: 1.5; margin-top: 16px; }
+.p16 .punch { position: absolute; left: 0; top: 720px; font-size: 36px; }
+
+/* ===========================================
+   PLEOS CONNECT 화면 목업 (HU)
+   Connect-S 17인치(2560x1440). 컨테이너 font-size로 크기를 정한다(1em = 화면 너비의 1/100).
+   =========================================== */
+.hu{position:relative;width:100em;height:56.25em;border-radius:1.6em;background:#0a0a0b;padding:.8em;box-shadow:0 3em 5em -2.4em rgba(0,0,0,.45)}
+.hu-in{position:relative;width:100%;height:100%;border-radius:.9em;overflow:hidden;background:#f7f7f7;font-family:var(--font);color:#141414}
+.hu svg{max-width:none;max-height:none}
+.hu-drv{position:absolute;left:0;top:0;width:33.4%;bottom:9.8%;background:#f4f5f7;border-right:.08em solid #e3e5e8;overflow:hidden}
+.hu-top{position:absolute;left:1.3em;right:1.3em;top:1em;display:flex;align-items:flex-start;justify-content:space-between}
+.hu-spd{font-size:4.4em;font-weight:700;letter-spacing:-.04em;line-height:.95}
+.hu-spd small{display:block;font-size:.24em;font-weight:500;color:#6b7078;letter-spacing:0;margin-top:.15em}
+.hu-prnd{font-size:1.5em;font-weight:600;color:#b4b8bf;letter-spacing:.35em;margin-top:.3em}
+.hu-prnd b{display:inline-block;background:#141414;color:#fff;letter-spacing:0;padding:0 .3em;margin-left:.1em;border-radius:.15em}
+.hu-rng{font-size:1.35em;font-weight:600;margin-top:.35em}
+.hu-tt{position:absolute;left:1.3em;top:7.6em;display:flex;flex-direction:column;gap:.8em;align-items:center}
+.hu-lim{width:2.6em;height:2.6em;border-radius:50%;border:.32em solid #e5484d;display:grid;place-items:center;font-size:1em;font-weight:800;background:#fff}
+.hu-sig{display:flex;gap:.5em}
+.hu-sig svg{width:1.8em;height:1.8em}
+.hu-wpi{width:2em;height:2em}
+.hu-road{position:absolute;left:50%;top:9em;width:30em;height:36em;transform:translateX(-50%);background:linear-gradient(180deg,#eceef1,#dfe2e6);clip-path:polygon(42% 0,58% 0,100% 100%,0 100%)}
+.hu-lane{position:absolute;top:9em;height:36em;width:.25em;background:repeating-linear-gradient(180deg,#fff 0 1.2em,transparent 1.2em 2.4em);transform-origin:top center}
+.hu-path{position:absolute;left:50%;top:15em;width:3.4em;height:22em;transform:translateX(-50%);background:linear-gradient(180deg,rgba(105,98,255,0),rgba(105,98,255,.75));clip-path:polygon(40% 0,60% 0,100% 100%,0 100%)}
+.hu-car{position:absolute;border-radius:.6em .6em .4em .4em;background:linear-gradient(180deg,#9aa0a8,#7d838c)}
+.hu-car.me{background:linear-gradient(180deg,#2b2f36,#121418);box-shadow:0 .4em .8em rgba(0,0,0,.25)}
+.hu-car::after{content:"";position:absolute;left:12%;right:12%;top:18%;height:22%;border-radius:.2em;background:rgba(255,255,255,.35)}
+.hu-odo{position:absolute;left:1.3em;bottom:1em;font-size:1.1em;color:#6b7078}
+.hu-stat{position:absolute;left:33.4%;right:0;top:0;height:6.1%;display:flex;align-items:center;gap:1.6em;padding:0 1.6em;border-bottom:.08em solid #e3e5e8;background:#f7f7f7}
+.hu-stat svg{width:1.5em;height:1.5em}
+.hu-stat .sp{flex:1}
+.hu-prof{width:2em;height:2em;border-radius:50%;border:.08em solid #d6d8dc;display:grid;place-items:center;font-size:.95em;font-weight:700;color:#a03fd1;background:#fff}
+.hu-clock{font-size:1.4em;font-weight:500}
+.hu-app{position:absolute;left:34.3%;right:.9%;top:6.9%;bottom:10.6%;background:#fff;border-radius:1.2em;padding:2.2em 2.6em;display:grid;grid-template-columns:1fr 17em;gap:2.4em}
+.hu-ah{display:flex;align-items:center;gap:.8em;font-size:1.35em;font-weight:600;color:#6b7078}
+.hu-logo{width:1.6em;height:1.6em;border-radius:.45em;background:#141414;display:grid;place-items:center;color:#fff;font-size:.8em;font-weight:800}
+.hu-main{display:flex;flex-direction:column;gap:1.5em}
+.hu-state{align-self:flex-start;font-size:2.4em;font-weight:800;border-radius:99em;padding:.18em .75em;margin-top:.6em}
+.hu-state.speak{background:#16a34a;color:#fff}.hu-state.wait{background:#e5484d;color:#fff}.hu-state.listen{background:#f5a524;color:#1f1400}
+.hu-state.park{background:#e8e9ec;color:#3a3d42}
+.hu-sent{font-size:3.5em;font-weight:700;line-height:1.25;letter-spacing:-.02em}
+.hu-sent small{display:block;font-size:.4em;font-weight:500;color:#6b7078;margin-top:.5em;letter-spacing:0}
+.hu-wave{display:flex;gap:.5em;align-items:center;height:3.6em}.hu-wave i{width:.62em;border-radius:.31em;background:currentColor}
+.hu-prog{font-size:1.3em;color:#6b7078;display:flex;justify-content:space-between}
+.hu-track{height:.5em;border-radius:.25em;background:#eceef1;margin-top:.6em;overflow:hidden}.hu-track div{height:100%;background:#16a34a}
+.hu-side{display:flex;flex-direction:column;gap:1.2em;padding-top:2.6em}
+.hu-card{background:#f4f5f7;border-radius:1em;padding:1.4em 1.6em;font-size:1.25em;color:#6b7078;line-height:1.45}
+.hu-card b{display:block;font-size:2.1em;color:#141414;letter-spacing:-.02em;margin:.1em 0}
+.hu-gnb{position:absolute;left:0;right:0;bottom:0;height:9.8%;background:#000;display:flex;align-items:center;padding:0 2em;color:#fff}
+.hu-gnb svg{width:2.1em;height:2.1em}
+.hu-clim{display:flex;align-items:center;gap:1.1em;font-size:1.7em;font-weight:500}
+.hu-clim .dn{color:#3b82f6}.hu-clim .up{color:#ef4444}
+.hu-clim small{font-size:.55em;color:#a3a3a3;display:block;text-align:center;letter-spacing:.05em}
+.hu-grp{display:flex;align-items:center;gap:1.7em;margin-left:2em}
+.hu-mid{flex:1;display:flex;justify-content:center;align-items:center;gap:1.3em}
+.hu-ap{position:relative;width:3.1em;height:3.1em;border-radius:.6em;background:#2b2b2e;display:grid;place-items:center}
+.hu-ap.mine{background:#fff;color:#141414;font-weight:800;font-size:1.25em}
+.hu-ap.mine::after{content:"";position:absolute;left:0;right:0;bottom:-.5em;height:.22em;background:#ff9500;border-radius:.1em}
+.hu-ap.bare{background:none}
+.hu-div{width:.08em;height:2em;background:#3a3a3d}
+.hu-big{font-size:7em;font-weight:800;letter-spacing:-.04em;line-height:1;margin-top:.25em}
+.hu-big span{font-size:.36em;font-weight:600;color:#6b7078;letter-spacing:0}
+.hu-rows{display:grid;gap:.2em;margin-top:.6em}
+.hu-rows div{display:flex;justify-content:space-between;font-size:1.5em;padding:.75em 0;border-bottom:.06em solid #eceef1;color:#6b7078}
+.hu-rows b{color:#141414}
+.hu-qr{background:#f4f5f7;border-radius:1em;padding:1.6em;font-size:1.35em;color:#3a3d42;font-weight:600;text-align:center;line-height:1.4;margin-top:1.2em}
+.hu-qr i{display:block;width:8em;height:8em;margin:0 auto .9em;border-radius:.4em;background:
+  conic-gradient(from 90deg at 30% 30%,#141414 25%,transparent 0) 0 0/1.6em 1.6em,
+  repeating-linear-gradient(90deg,#141414 0 .4em,transparent .4em .9em),#fff;border:.5em solid #fff;outline:.1em solid #d6d8dc}
+.hu-chat{display:grid;gap:.9em}
+.hu-bub{font-size:1.9em;line-height:1.35;padding:.5em .8em;border-radius:.7em;background:#f4f5f7;justify-self:start;max-width:94%}
+.hu-bub small{display:block;font-size:.62em;color:#6b7078;font-weight:600;margin-bottom:.15em}
+.hu-bub.r{justify-self:end;background:#e9f7ee;color:#0f6b31;font-weight:800}
+.hu-note{font-size:1.3em;color:#6b7078;margin-top:auto}
+.hu-btns{display:flex;gap:1em;margin-top:.4em}
+.hu-btn{font-size:2em;font-weight:700;padding:.55em 1.1em;border-radius:.6em;background:#141414;color:#fff}
+.hu-btn.ghost{background:#eceef1;color:#3a3d42}
+.hu-duel{display:grid;grid-template-columns:1fr 1fr;gap:1.2em}
+.hu-pl{background:#f4f5f7;border-radius:1em;padding:1.1em 1.4em}
+.hu-pl.on{background:#fff;box-shadow:inset 0 0 0 .25em #16a34a}
+.hu-pl small{display:block;font-size:1.3em;color:#6b7078;font-weight:600}
+.hu-pl b{display:block;font-size:4.4em;font-weight:800;letter-spacing:-.04em;line-height:1.05}
+.hu-pl span{font-size:1.25em;color:#6b7078}
+.hu-pl.on span{color:#16a34a;font-weight:700}
+.dev .hu-sig path[fill="#22c55e"] { animation: huBlink .8s steps(1) infinite; }
+
+/* ===========================================
+   PRESENTER CHROME (무대 밖)
+   =========================================== */
+#bar { position: fixed; left: 0; bottom: 0; height: 3px; background: var(--ink); width: 0; transition: width .3s ease; z-index: 5; }
+#hint { position: fixed; right: 18px; bottom: 12px; font-size: 12px; color: var(--muted); z-index: 5; opacity: .75; font-family: var(--font); }
+#hint kbd { border: 1px solid var(--hair); border-radius: 4px; padding: 0 5px; background: #fff; color: var(--ink-2); font-family: inherit; }
+#notes { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(980px, calc(100vw - 32px)); background: #fff; border-radius: 10px; padding: 16px 22px; font-family: var(--font); font-size: 17px; line-height: 1.65; color: var(--ink); z-index: 6; display: none; box-shadow: 0 20px 50px rgba(0,0,0,.2); max-height: 45vh; overflow-y: auto; }
+#notes b { text-decoration: underline; text-decoration-color: var(--pleos); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+body.show-notes #notes { display: block; }
+.nav-btn { position: fixed; top: 50%; transform: translateY(-50%); z-index: 5; width: 44px; height: 64px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-size: 26px; cursor: pointer; }
+.nav-btn:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+#prevBtn { left: 8px; } #nextBtn { right: 8px; }
+body.editing [contenteditable="true"] { outline: 2px dashed rgba(255,149,0,.6); outline-offset: 4px; }
+#editBadge { position: fixed; left: 16px; top: 14px; z-index: 7; font-family: var(--font); font-size: 13px; font-weight: 700; color: #fff; background: var(--ink); padding: 6px 12px; border-radius: 6px; display: none; }
+body.editing #editBadge { display: block; }
+@media print { #bar, #hint, #notes, .nav-btn, #editBadge { display: none !important; } .rv { opacity: 1 !important; transform: none !important; } }
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ============ 01 표지 ============ -->
+<section class="slide cover" data-sec="표지" data-notes="안녕하세요. 제가 가져온 아이디어는 ‘드라이브 쉐도잉’입니다. 한 줄로 말하면, <b>눈치 빠른 출근길 영어 코치</b>입니다. 운전이 바쁘면 기다리고, 여유가 생기면 먼저 말을 겁니다. 15분 동안, 이걸 왜 우리가 해야 하는지 말씀드리겠습니다. (넘기며) 먼저 하나 여쭤볼게요.">
+  <p class="kicker rv">현대자동차그룹 차량용 앱 개발 공모전 · 아이디어 제안</p>
+  <h1 class="rv d1">드라이브<br>쉐도잉</h1>
+  <p class="sub rv d2">눈치 빠른 출근길 영어 코치</p>
+  <p class="say rv d3">깜빡이를 켜면 <b>입을 다물고</b>,<br>길이 한산해지면 <b>먼저 말을 겁니다.</b></p>
+  <div class="meta rv d4"><span>대상<b>자가용 출퇴근 직장인</b></span><span>플랫폼<b>Pleos Connect</b></span></div>
+  <div class="dev rv d2" aria-hidden="true"><div class="hu" id="coverHu"></div></div>
+</section>
+
+<!-- ============ 02 숫자 ============ -->
+<section class="slide" data-sec="출퇴근 시간" data-notes="오늘 아침 출근길, 차 안에서 뭐 하셨어요? (잠깐 대답을 기다림) 라디오, 음악, 아니면 막히는 길 보면서 한숨. 다들 비슷할 겁니다. 통계청 자료를 보면 직장인은 출퇴근에 하루 평균 <b>74분</b>, 1시간 넘게 씁니다. 1년이면 약 300시간, 꼬박 12일이 넘습니다. 그리고 출퇴근하는 사람 <b>2명 중 1명</b>, 약 1,200만 명이 차로 다닙니다. 매일 오는 시간인데, 대부분 그냥 흘려보냅니다. → 그럼 이 시간에 뭘 할 수 있을까요?">
+  <div class="frame">
+    <p class="h m g rv">매일 아침과 저녁, 우리는</p>
+    <div class="n74 rv d1"><b>74</b><span>분</span></div>
+    <p class="n74-k rv d2">직장인이 출퇴근에 쓰는 <span class="mk">하루 평균 시간</span></p>
+    <div class="facts">
+      <div class="fact rv d2"><div class="v">약 1,200<small>만 명</small></div><div class="k">차로 출퇴근하는 사람 · 통근자 2명 중 1명</div></div>
+      <div class="fact rv d3"><div class="v">약 300<small>시간</small></div><div class="k">1년 출퇴근 시간 · 꼬박 12일이 넘는다<br><span class="tag-as">근무일 250일 가정</span></div></div>
+    </div>
+  </div>
+  <p class="src">정확한 값: 하루 73.9분, 약 1,183만 명, 연 약 308시간. 출처: 통계청 「2024년 통근 근로자 이동특성 실험적통계」(2024.12.20, 교통수단 구분 없음) · 「2020 인구주택총조사 표본 집계」(통근인구 2,328만 5천 명 × 승용차·승합차 50.8%로 계산)</p>
+</section>
+
+<!-- ============ 03 통찰 ============ -->
+<section class="slide p3" data-sec="우리가 발견한 것" data-notes="저는 이 공간에 주목했습니다. 영어 말하기는 <b>소리를 내야</b> 늡니다. 그런데 직장인이 큰 소리로 영어를 연습할 곳이 없습니다. 지하철에서 하면 다 쳐다보고, 사무실에선 못 하고, 집에는 가족이 있고 우리는 지쳐 있습니다. 예외가 하나 있습니다. <b>혼자 탄 차</b>입니다. 문이 닫혀 있고, 아무도 안 듣고, 매일 같은 시간에 옵니다. 문제는, 이 공간을 학습에 쓸 방법이 없다는 겁니다. → 왜 없을까요?">
+  <div class="frame">
+    <p class="h rv"><span class="g">혼자 탄 차 안은, 마음껏 소리 내어<br>영어를 연습할 수 있는</span> 거의 유일한 공간</p>
+    <div class="places">
+      <div class="place rv d1"><b>지하철</b><p>소리 내면<br>모두가 쳐다봅니다</p></div>
+      <div class="place rv d2"><b>사무실</b><p>영어로<br>중얼거릴 수 없습니다</p></div>
+      <div class="place rv d3"><b>집</b><p>가족이 있고,<br>지쳐 있습니다</p></div>
+      <div class="place me rv d4"><b class="mk">혼자 탄 차</b><p>문이 닫혀 있고 아무도 듣지 않습니다. 매일 같은 시간에 옵니다</p></div>
+    </div>
+    <p class="voice rv d5"><b>인터뷰 인용 자리</b> · 직장인 5명 인터뷰 뒤 실제 한 말로 바꿔 넣는다 (예: 어디서 소리 내 연습하는지, 왜 못 하는지)</p>
+    <p class="punch rv d5"><span class="g">문제는, 이 공간을</span> 학습에 쓸 방법이 없다는 것.</p>
+  </div>
+</section>
+
+<!-- ============ 04 시장과 문제 ============ -->
+<section class="slide p4" data-sec="왜 지금은 안 되나" data-notes="영어 앱이 없어서가 아닙니다. 오히려 넘칩니다. 교육 앱에 <b>100만 원을 쓰면 40만 원</b>이 영어 앱으로 갑니다. 그리고 스픽은 한 앱이 1년에 960만 달러, 우리 돈 약 120억 원을 벌어 교육 앱 매출 1위였습니다. 사람들이 이미 돈을 내는 시장입니다. 그런데 이 앱들은 전부 <b>화면을 보는 시간</b>, 지하철, 점심, 자기 전을 두고 싸웁니다. 운전 중엔 화면을 못 보니 들어올 수가 없고, 차량용 앱 분류에는 교육이 아예 없습니다. 그 자리를 지금 채우는 건 팟캐스트와 라디오인데, 팟캐스트는 차로를 바꾸는 순간에도 계속 말하고, 라디오는 남는 게 없습니다. 비어 있는 건 콘텐츠가 아니라 <b>타이밍</b>입니다. 언제 말을 걸고, 언제 입을 다물지 아는 것. → 그럼 어떻게 해야 할까요?">
+  <div class="frame">
+    <p class="h rv"><span class="g">영어 앱은 넘치는데,</span><br>운전 시간엔 들어오지 못한다</p>
+    <div class="mkt">
+      <div class="rv d1">
+        <p class="lab">지하철 · 점심 · 자기 전</p>
+        <p class="pre">교육 앱에 100만 원을 쓰면</p>
+        <p class="big">40만 원은 영어</p>
+        <p class="cap">2022년 국내 교육 앱 매출의 39% · 스픽이 교육 앱 매출 1위</p>
+      </div>
+      <div class="rv d2">
+        <p class="lab">운전 출퇴근</p>
+        <p class="big zero">교육 없음</p>
+        <p class="cap">차량용 Android 공식 앱 분류에 교육 카테고리가 없다</p>
+      </div>
+    </div>
+    <p class="punch rv d3"><span class="g">비어 있는 건 콘텐츠가 아니라</span> <span class="mk">타이밍</span>이다.</p>
+  </div>
+  <p class="src">정확한 값: 영어 앱 39.2%(2022년). 스픽 약 960만 달러 이상(2022.3.16~2023.3.15, 구글·애플 합산). 출처: 센서타워 블로그(2023.4) · Android for Cars 지원 앱 카테고리(developer.android.com, 2026.10.24 확인)</p>
+</section>
+
+<!-- ============ 05 해법 ============ -->
+<section class="slide" data-sec="우리의 답" data-notes="드라이브 쉐도잉은 <b>운전을 먼저 봅니다</b>. 세 가지만 기억하시면 됩니다. 운전이 바쁘면 문장 중간이라도 <b>기다립니다</b>. 여유가 생기면 따라 말해 보자고 <b>말을 건넵니다</b>. 차에서 내리면 휴대폰으로 <b>이어집니다</b>. → 말로는 잘 안 와닿으실 테니, 하루를 빠르게 돌려 보겠습니다.">
+  <div class="frame">
+    <p class="h rv"><span class="g">드라이브 쉐도잉은</span> <span class="mk">운전을 먼저 본다</span></p>
+    <div class="verbs3">
+      <div class="rv d1"><div class="dev"><div class="hu" data-state="wait"></div></div><p class="w wait">기다린다</p><p>운전이 바쁜 순간엔<br>문장 중간이라도 멈춘다</p></div>
+      <div class="rv d2"><div class="dev"><div class="hu" data-state="speak"></div></div><p class="w go">말을 건넨다</p><p>여유가 생기면<br>따라 말하기를 시작한다</p></div>
+      <div class="rv d3"><div class="dev"><div class="hu" data-state="summary"></div></div><p class="w">이어진다</p><p>차에서 내리면<br>휴대폰으로 넘어간다</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 하루 (타임랩스) ============ -->
+<section class="slide day" id="day" data-sec="어느 직장인의 하루" data-notes="(편도 35분짜리 출근길입니다. 넘기면 자동 재생, 약 28초. 재생 중에는 화면을 가리키며 짧게만) 07:50 ‘목적지를 찍으면 도착 시간에 맞춰 레슨이 짜집니다.’ / 07:56 ‘깜빡이를 켜는 순간, 코치가 입을 다뭅니다.’ / 08:05 ‘한산한 고속 구간, 이제 따라 말할 차례.’ / 08:12 ‘비가 오면 듣기만.’ / 08:20 ‘막혀서 멈춰 섰을 때가 오히려 말하기 좋은 시간입니다.’ / 08:35 ‘주차하면 휴대폰으로 넘어가고,’ 12:40 ‘점심에 발음 평가.’ / 18:30 ‘퇴근길엔 약했던 문장을 복습합니다.’ (끝나면 한 문장) 출근 학습, 점심 발음 평가, 퇴근 복습이 하루 하나로 이어집니다. (다시 보려면 R 키) → 그런데 혼자 출근하는 날만 있는 건 아니죠.">
+  <div class="legacy">
+    <p class="h"><span class="g">출근길 35분이</span> 하루의 학습 루프가 된다</p>
+    <div class="tl-grid">
+      <div class="tl-dev" id="tlDev">
+        <div class="ck" id="ck">
+          <div class="ck-ws"><svg id="ckOut" viewBox="0 0 940 300" preserveAspectRatio="xMidYMid slice"></svg><div class="ck-rain"></div><div class="ck-wiper"></div></div>
+          <div class="ck-mirror"></div>
+          <div class="ck-dash"></div>
+          <div class="ck-wheel"></div>
+          <div class="ck-sig" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 5L3 12l7 7v-4h10V9H10z"/></svg></div>
+          <span class="ck-tag ck-tag-out">앞유리 밖</span><span class="ck-tag ck-tag-in">Pleos 센터 화면</span>
+          <div class="ck-screen"><div class="hu" id="tlHu"></div></div>
+        </div>
+        <div class="tl-phone" id="tlPhone"><div class="tlp">
+          <small>12:40 점심 · 드라이브 쉐도잉</small>
+          <h4>오늘 문장 발음 평가</h4>
+          <div class="tlp-score"><b id="tlScore">0</b><span>점</span></div>
+          <div class="tlp-row"><span>Could we push the meeting…</span><b>✓</b></div>
+          <div class="tlp-row w"><span>push the meeting</span><b>약함</b></div>
+          <div class="tlp-row"><span>Sounds good to me.</span><b>✓</b></div>
+          <p class="tlp-foot">약한 표현은 퇴근길 레슨에 더 자주</p>
+        </div></div>
+      </div>
+      <div class="tl-side">
+        <div class="tl-clock" id="clock">07:50</div>
+        <div class="tl-cap" id="sceneCap"></div>
+        <button class="replay" id="replay" type="button">↺ 다시 보기 (R)</button>
+      </div>
+    </div>
+    <div class="dayline">
+      <div class="dl-track"><div class="dl-fill" id="dlFill"></div></div>
+      <div class="dl-marks" id="dlMarks"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 07 등원길 ============ -->
+<section class="slide ep" data-sec="동승자와 함께 · 등원길" data-notes="아이를 어린이집에 데려다주고 출근하는 날입니다. 뒷좌석에 아이가 타면 앱이 아이 이름을 부르며 쉬운 영어로 묻습니다. ‘지우야, What color is the sky?’ 아이가 ‘Blue!’ 하고 소리 내 답하면 <b>차 마이크가 알아듣고 칭찬합니다.</b> 운전자는 대답할 필요 없이 운전에 집중하고, 차로를 바꾸면 놀이도 똑같이 멈춥니다. 어린이집 앞에서 아이가 내리면 <b>뒷좌석이 빈 걸 차가 알고</b>, 다시 출발하는 순간 남은 25분에 맞춰 내 출근 영어가 시작됩니다. 저녁엔 부모 휴대폰에 오늘 아이가 말한 표현이 남아 있어 같이 해 볼 수 있습니다. 심사 기준이 말하는 ‘동승자의 필요’에 대한 답이기도 합니다. → 아이 말고, 친구가 타는 날은 어떨까요?">
+  <div class="frame">
+    <p class="h m rv"><span class="g">아이를 태우고 출근하는 날.</span><br>아이와 주고받고, 내려 주면 내 영어로</p>
+    <div class="dev main rv d1" aria-hidden="true"><div class="hu" id="epKid1"></div></div>
+    <p class="cap rv d2"><b>08:05</b>앱이 묻고 아이가 소리 내 답하면 차 마이크가 알아듣고 칭찬합니다. 운전자는 듣기만, 차로를 바꾸면 놀이도 멈춥니다.</p>
+    <div class="side">
+      <div class="rv d2"><p><b>08:15</b>아이가 내리면, 차가 먼저 안다</p><div class="dev" aria-hidden="true"><div class="hu" id="epKid2"></div></div></div>
+      <div class="rv d3"><p><b>08:16</b>남은 25분은 내 출근 영어</p><div class="dev" aria-hidden="true"><div class="hu" id="epKid3"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 친구와 발음 내기 ============ -->
+<section class="slide ep" data-sec="동승자와 함께 · 친구" data-notes="이번엔 친구나 동료를 태우고 퇴근하는 날입니다. 조수석에 사람이 앉으면 <b>차가 압니다.</b> 앱이 ‘같이 발음 내기 할까요?’ 하고 묻고, 둘 중 한 명이 ‘좋아’라고 말하면 시작합니다. 앱이 문장을 들려주면 한 사람씩 따라 말하고, <b>차 마이크가 알아들은 단어만큼</b> 점수가 오릅니다. 누구 차례인지는 앱이 좌석으로 정해 부르니 목소리를 구분할 필요가 없습니다. 깜빡이를 켜면 경기도 멈추는 건 똑같습니다. 도착하면 오늘의 발음왕이 나오고, 휴대폰으로 다시 붙을 수 있습니다. 혼자 탄 차가 연습실이라면, <b>같이 탄 차는 놀이터</b>가 됩니다. 동승자가 있으면 꺼지는 앱이 아니라, 동승자가 오히려 켤 이유가 되는 앱입니다. → 여기까지 들으면 이런 생각이 드실 겁니다. 이거 진짜 되는 거야?">
+  <div class="frame">
+    <p class="h m rv"><span class="g">친구를 태우고 퇴근하는 날.</span><br>혼자일 땐 연습, 같이 타면 <span class="mk">발음 내기</span></p>
+    <div class="dev main rv d1" aria-hidden="true"><div class="hu" id="epFr2"></div></div>
+    <p class="cap rv d2"><b>18:45</b>들려준 문장을 한 사람씩 따라 말하면, 차 마이크가 알아들은 단어만큼 점수가 오릅니다. 차례는 좌석으로 정하고, 깜빡이를 켜면 경기도 멈춥니다.</p>
+    <div class="side">
+      <div class="rv d2"><p><b>18:40</b>조수석에 사람이 타면</p><div class="dev" aria-hidden="true"><div class="hu" id="epFr1"></div></div></div>
+      <div class="rv d3"><p><b>19:05</b>도착하면 오늘의 발음왕</p><div class="dev" aria-hidden="true"><div class="hu" id="epFr3"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 차 신호 → 코치의 판단 ============ -->
+<section class="slide p9w" data-sec="차량특화성 · 기술 활용성" data-notes="됩니다. 지금까지 본 장면은 전부 <b>차가 아는 신호</b>로 움직입니다. 방향지시등·와이퍼·좌석은 Vehicle SDK, 회전 지점과 도착까지 남은 시간은 NaviHelper, 말이 끝났는지는 SpeechToText로 받고, 기어와 속도는 안드로이드 차량 기본 API로 받습니다. 신호가 들어오면 코치가 기다릴지, 듣기만 할지, 말을 걸지 정합니다. Pleos 에뮬레이터를 받아 신호 확인 앱을 직접 만들어서, 이 신호들을 <b>실제로 받아 봤습니다</b>. 방향지시등은 켜자마자 1초도 안 돼 들어옵니다(실측 0.1~0.7초). 휴대폰은 속도 정도는 알아도 깜빡이·와이퍼·좌석은 모릅니다. 그래서 차와 연결되지 않으면 이 앱은 성립하지 않습니다. → 남은 질문 하나, 따라 말했는지는 어떻게 알까요?">
+  <div class="frame">
+    <p class="h rv"><span class="g">차와 연결되지 않으면,</span> 이 앱은 성립하지 않는다</p>
+    <div class="wire rv d1">
+      <div class="head"><span>차가 아는 것</span><span>받는 곳 (SDK · API)</span><span></span><span>코치의 판단</span></div>
+      <div><b>방향지시등 켜짐</b><code>Vehicle SDK · TurnSignal</code><i>→</i><b class="st wait">기다리는 중</b></div>
+      <div><b>회전 지점이 가까움</b><code>NaviHelper · TBTInfo</code><i>→</i><b class="st wait">기다리는 중</b></div>
+      <div><b>와이퍼 작동</b><code>Vehicle SDK · Wiper</code><i>→</i><b class="st listen">듣기만</b></div>
+      <div><b>정체로 멈춤</b><code>AAOS · 속도 0 + 기어 D</code><i>→</i><b class="st go">말할 차례</b></div>
+      <div><b>주차</b><code>AAOS · GEAR_SELECTION = P</code><i>→</i><b class="st ink">오늘 요약 · 휴대폰으로</b></div>
+      <div><b>도착까지 남은 시간</b><code>NaviHelper · DestinationInfo</code><i>→</i><b class="st ink">레슨 길이 맞춤</b></div>
+      <div><b>뒷좌석·조수석 착석</b><code>Vehicle SDK · 좌석 점유</code><i>→</i><b class="st ink">등원길 놀이 · 발음 내기</b></div>
+    </div>
+    <p class="punch rv d2"><span class="g">휴대폰은 깜빡이도, 와이퍼도, 좌석도 모른다.</span> <span class="mk">우리는 이미 받아 봤다.</span></p>
+  </div>
+  <p class="src">Pleos SDK Vehicle 2.3.2 · NaviHelper 3.0.5, 에뮬레이터 실측(2026.10.23~24).<br>속도·기어는 Pleos SDK에 없어 AAOS CarPropertyManager로 받음. 주행 중 화면은 CarUxRestrictions를 따름.</p>
+</section>
+
+<!-- ============ 09 음성 인식 ============ -->
+<section class="slide" data-sec="기술 활용성" data-notes="차 안 음성 인식도 돌려 봤습니다. ‘Could we push the meeting to Thursday?’를 차 안 엔진에 들려줬더니 그대로 받아 적었고, 말이 끝나고 1초도 안 돼(실측 약 0.6초) 결과가 왔습니다. 네트워크도, 앱 등록도 필요 없었고 한국어도 정확했습니다. 그래서 따라 말했는지, 말이 끝났는지를 차가 압니다. 차와 통신하는 부분에서 앱이 멈추는 문제도 이미 겪고 풀었습니다. 여기까지가 <b>만들 수 있다</b>는 증거입니다. → 그럼 쓸 사람이 있고, 계속 쓸까요?">
+  <div class="frame">
+    <p class="h rv"><span class="g">차 안 음성 인식까지,</span> 이미 돌려 봤다</p>
+    <div class="stt">
+      <div class="rv d1"><small>들려준 문장</small><div class="wv" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="said">“Could we push the meeting to Thursday?”</p></div>
+      <div class="to rv d2" aria-hidden="true"></div>
+      <div class="rv d3"><small>차 안 엔진이 받아 적은 글</small><code>could we push the meeting to thursday</code><p class="lat">✓ 정확 · 말이 끝나고 <b>1초</b> 안에</p></div>
+    </div>
+    <p class="stt-note rv d4">네트워크·앱 등록 없이 차 안 엔진(ON_DEVICE)으로 · 한국어도 정확 · SpeechToText 3.3.1 실측(10.24)</p>
+  </div>
+</section>
+
+<!-- ============ 11 사업성 ① 리텐션 ============ -->
+<section class="slide" data-sec="사업성 · 계속 쓸까" data-notes="사업성은 두 장으로 말씀드리겠습니다. 먼저 <b>계속 쓸까</b>. 출퇴근은 평일마다 같은 시간에 옵니다. 매일 열 이유가 앱 밖에 이미 있는 겁니다. 레슨은 도착 시간에 맞춰 끝나고, 약했던 표현은 다음 출근길로 넘어갑니다. 그래서 새로 쓴 사람 중 첫 주 뒤 60%, 4주 뒤 40%, 12주 뒤 30%가 남는 것을 목표로 잡았고, 한 달 사용자 중 매일 쓰는 비율은 듀오링고(약 37%)와 비슷한 40%를 목표로 합니다. <b>전부 가정</b>이고 1차 제출 뒤 테스트 사용자로 실측해 바꿉니다. → 그럼 얼마나 커지고, 어떻게 벌까요?">
+  <div class="frame">
+    <p class="h m rv"><span class="g">출퇴근은 평일마다 온다.</span><br>매일 열 이유가 <span class="mk">앱 밖에</span> 있다</p>
+    <div class="ret4 rv d1">
+      <div><p>첫 주 뒤</p><b>60%</b></div>
+      <div><p>4주 뒤</p><b>40%</b></div>
+      <div><p>12주 뒤</p><b>30%</b></div>
+      <div><p>매일 쓰는 비율</p><b>40%</b><span>한 달 사용자 중 · 듀오링고 약 37%</span></div>
+    </div>
+    <p class="ret-k rv d2">새로 쓴 사람 중 계속 쓰는 비율 · <span class="tag-as">목표·가정, 1차 제출 뒤 테스트 사용자로 실측</span></p>
+  </div>
+  <p class="src">듀오링고: Q3 2025 Shareholder Letter(SEC 8-K, DAU 5,050만·MAU 1억 3,530만으로 계산). 리텐션·매일 사용 비율은 제안자 목표(가정).</p>
+</section>
+
+<!-- ============ 12 사업성 ② 성장·수익 ============ -->
+<section class="slide" data-sec="사업성 · 얼마나 클까" data-notes="사용자 수는 <b>Pleos 탑재 대수에 비례</b>합니다. 기준 시나리오로 1만 대당 월 사용자 약 120명입니다. 올해 말 4만 대면 약 490명, 국내 100만 대면 약 1만 2천 명입니다. 처음부터 크게 버는 앱이 아니라, <b>Pleos가 늘어나는 만큼 같이 크는 앱</b>입니다. 탑재 목표는 2030년 2,000만 대입니다. 사용자를 모으는 길이 곧 돈을 버는 길입니다. Pleos 앱 마켓에서 개인이 설치하면 차 안은 무료, 휴대폰 발음 평가는 구독. 회사가 교육·복지 이용권을 사면 계약 하나로 직원 여럿. 영어 콘텐츠 회사가 입점하면 수수료. 아까 본 레드오션의 경쟁자들이 <b>파트너</b>가 되는 그림입니다. 같은 엔진에 업무 교육, 오디오북, 다른 언어와 해외 차량도 얹을 수 있습니다. → 그럼 공모전에서는 이길 수 있을까요?">
+  <div class="frame">
+    <p class="h m rv"><span class="g">Pleos가 늘어나는 만큼</span><br>같이 크는 앱</p>
+    <div class="biz" style="top:230px">
+      <div class="l rv d1">
+        <h3 style="font-size:24px;font-weight:700;color:var(--muted)">예상 MAU · 국내 탑재 대수별</h3>
+        <div class="mau big2">
+          <div><p class="k">4만 대<small>2026년 말 · 그랜저</small></p><p class="v">490<small>명</small></p></div>
+          <div><p class="k">100만 대</p><p class="v">12,200<small>명</small></p></div>
+        </div>
+        <p class="mau-f">기준 시나리오(1만 대당 122명), 모두 가정 · 계산은 부록 18장</p>
+        <p class="goal" style="margin-top:36px"><b>2,000만 대</b>Pleos Connect 탑재 목표 (2030년)</p>
+      </div>
+      <div class="r">
+        <h3 class="rv d2">모으고 버는 길</h3>
+        <div class="rev rv d3">
+          <div><i>1</i>Pleos 앱 마켓 · 개인 구독<span>차 안 무료 · 휴대폰 발음 평가 유료</span></div>
+          <div><i>2</i>회사 교육·복지 이용권<span>계약 하나로 직원 여럿 (B2B)</span></div>
+          <div><i>3</i>영어 콘텐츠 회사 입점<span>수수료 · 경쟁자가 파트너가 된다</span></div>
+        </div>
+        <p class="more rv d4" style="font-size:26px;color:var(--ink-2);margin-top:36px">확대: 업무 교육 · 오디오북 · 다른 언어 · 해외 차량</p>
+      </div>
+    </div>
+  </div>
+  <p class="src">출처: 현대자동차그룹 보도자료(2026.4.30). 시나리오 비율은 제안자 가정(부록).</p>
+</section>
+
+<!-- ============ 11 심사표 ============ -->
+<section class="slide p11" data-sec="심사 기준" data-notes="심사 기준 네 가지에 맞춰 지금까지 보여 드린 근거를 정리하면 이렇습니다. <b>차량특화성</b>은 하루 장면과 등원길·친구 장면, 그리고 실측한 차 신호 여섯 개. <b>기술 활용성</b>은 Vehicle·NaviHelper·SpeechToText를 실제로 받아 본 결과와 연결도. <b>창의성</b>은 영어 앱이 들어오지 못하는 운전 시간과, 아이·친구라는 동승자의 필요. <b>사업성</b>은 리텐션 목표, 사용자 확보 경로, 탑재 대수별 예상 MAU와 수익 구조입니다. 그리고 1차 접수 때 동작하는 APK와 시연 영상까지 함께 냅니다. → 그럼 언제까지 무엇을 만들까요?">
+  <div class="frame">
+    <p class="h rv"><span class="g">심사표에</span> 정조준</p>
+    <table class="score rv d1">
+      <thead><tr><th>항목</th><th>공식 기준</th><th>보여 드린 근거</th></tr></thead>
+      <tbody>
+        <tr><td>차량특화성</td><td>모바일엔 없는 차만의 가치, 주행·정차 맥락과 차량 기능의 결합</td><td>하루 장면, 등원길·친구, 차 신호 6개 실측 <i>6–9장</i></td></tr>
+        <tr><td>기술 활용성</td><td>Pleos Playground SDK·API를 핵심 기능과 사용 경험에 활용</td><td>Vehicle·NaviHelper·SpeechToText 실측과 연결 <i>9·10장</i></td></tr>
+        <tr><td>창의성</td><td>독창성, 운전자·동승자의 불편과 필요를 명확히 풀었나</td><td>영어 앱이 못 들어오는 시간, 등원길 놀이·친구와 발음 내기 <i>3·4·7·8장</i></td></tr>
+        <tr><td>사업성</td><td>타깃, 예상 MAU, 리텐션, 확대 계획</td><td>리텐션 목표, 예상 MAU, 모으고 버는 길 <i>11·12장</i></td></tr>
+      </tbody>
+    </table>
+    <p class="punch rv d2"><span class="g">+ 가산점: 1차 접수 때</span> <span class="mk">동작하는 APK와 시연 영상</span>까지 낸다.</p>
+  </div>
+  <p class="src">공식 기준은 공모전 심사 안내(appdevchallenge.auto-hmg.io)를 요약. 세부 배점은 비공개.</p>
+</section>
+
+<!-- ============ 12 일정 ============ -->
+<section class="slide" data-sec="실행 계획" data-notes="1차 마감은 11월 15일, PT는 12월 3일입니다. 신호와 음성 인식 실측은 이미 끝났습니다. 11월 5일까지 엔진과 멈춤·듣기·말하기 전환, 9일까지 레슨 플래너와 등원길 전환, 14일에 직장 영어 100문장과 시연 영상, APK까지 묶어 <b>1차 접수 때 가산점 산출물을 함께 냅니다.</b> 1차는 차량 앱 하나에 집중하고, 휴대폰·서버·발음 평가와 친구 발음 내기는 PT 전까지 붙입니다. 음성 인식 SDK 사용 허가는 주최 측에 묻고 있고, 안 되면 정해진 쉼으로 동작하게 만듭니다(부록).">
+  <div class="frame">
+    <p class="h rv"><span class="g">1차 11/15, PT 12/3.</span> 이렇게 간다</p>
+    <div class="road rv d1" style="top:300px">
+      <div class="done"><p class="dt">10/24 ✓</p><p class="dd">신호·음성 인식 실측</p></div>
+      <div><p class="dt">~11/5</p><p class="dd">엔진, 멈춤·듣기·말하기 전환</p></div>
+      <div><p class="dt">~11/9</p><p class="dd">레슨 플래너, 등원길 전환</p></div>
+      <div><p class="dt">~11/14</p><p class="dd">100문장, 시연 영상, APK</p></div>
+      <div class="key"><p class="dt">11/15</p><p class="dd">1차 접수 + 가산점 산출물</p></div>
+      <div><p class="dt">~12/2</p><p class="dd">휴대폰·서버, 친구 발음 내기</p></div>
+      <div class="key"><p class="dt">12/3–4</p><p class="dd">PT, 동작하는 앱 시연</p></div>
+    </div>
+    <p class="punch rv d2" style="position:absolute;left:0;top:640px"><span class="g">1차는</span> 차량 앱 하나에 집중, <span class="g">나머지는 PT 전까지.</span></p>
+  </div>
+</section>
+
+<!-- ============ 13 마무리 ============ -->
+<section class="slide close" data-sec="마무리" data-notes="정리하겠습니다. 출퇴근 74분은 매일 옵니다. 드라이브 쉐도잉은 그 시간을 <b>매일 쌓이는 영어</b>로 바꿉니다. 깜빡이를 켜면 입을 다물고, 길이 한산해지면 먼저 말을 걸고, 차에서 내리면 휴대폰으로 이어집니다. 아이가 타면 놀이가 되고, 친구가 타면 발음 내기가 됩니다. 이 모든 판단은 <b>차가 알려 주는 신호</b>로 합니다. 감사합니다. (시연으로 넘어가며) 이제 에뮬레이터에서 실제로 보여 드리겠습니다.">
+  <div class="frame">
+    <p class="big rv" style="top:180px"><span class="g">매일 74분을,</span><br><span class="mk">매일 쌓이는 영어</span>로.</p>
+    <p class="ask rv d2" style="top:560px">감사합니다. 이제 실제로 보여 드리겠습니다.</p>
+  </div>
+</section>
+
+<!-- ============ 14 부록: 근거 ============ -->
+<section class="slide" data-sec="부록 · 근거 자료" data-notes="(질문이 나올 때만) 숫자의 출처입니다. 발표에서는 74분, 1,200만 명처럼 반올림해 말했고, 정확한 값은 여기 있습니다(73.9분, 약 1,183만 명). 전환율, 월 활성 비율, 매일 사용 비율 목표(40%), 근무일 250일은 가정입니다.">
+  <div class="frame">
+    <p class="h s rv">근거 자료</p>
+    <ol class="refs rv d1">
+      <li>통계청, 「2024년 통근 근로자 이동특성 실험적통계 작성결과」 보도자료(2024.12.20): 출퇴근 하루 평균 73.9분</li>
+      <li>통계청, 「2020 인구주택총조사 표본 집계 결과(인구 특성 항목)」(2021.11.29): 통근인구 2,328만 5천 명, 주된 교통수단 승용차·승합차 50.8% → 약 1,183만 명(계산)</li>
+      <li>현대자동차그룹 보도자료(2026.4.30): Pleos Connect 2026년 5월 신형 그랜저부터 탑재, 2030년 약 2,000만 대 목표</li>
+      <li>Duolingo Q3 2025 Shareholder Letter(SEC Form 8-K): DAU 5,050만, MAU 1억 3,530만 → DAU/MAU 약 37%(계산)</li>
+      <li>현대자동차그룹 차량용 앱 개발 공모전 공식 안내: 심사 항목, 일정, 가산점, PT 에뮬레이터 시연 인정</li>
+      <li>Pleos 개발 문서·SDK(NaviHelper 3.0.5, Vehicle 2.3.2, SpeechToText 3.3.1)와 에뮬레이터 실측(2026.10.23~24)</li>
+      <li>선례: Denso US11164472·JP6443257(우선일 2015.1, 유지료 미납으로 2025년 소멸, Google Patents 기준), Volvo IDIS(2003)</li>
+    </ol>
+  </div>
+  <p class="src">가정값: 근무일 250일, 차로 통근하는 차주 50~70%, 영어 말하기 수요 10~20%, 설치 전환율 20~50%(수요자 중), 월 활성 비율 40~60%, DAU/MAU 목표 40%, 2026년 말 탑재 약 4만 대</p>
+</section>
+
+<!-- ============ 15 부록: 리스크 ============ -->
+<section class="slide" data-sec="부록 · 리스크와 대응" data-notes="(질문이 나올 때만) 예상 질문과 답입니다. 선례를 물으면: 덴소 특허는 미국·일본 모두 2025년에 소멸했고 한국 등록은 찾지 못했으며, 우리는 ‘최초’라고 하지 않고 조합으로 승부합니다. 운전 중 말하기가 위험하지 않냐고 물으면: 이 앱의 핵심은 말하게 하는 것보다 <b>위험할 때 말을 시키지 않는 것</b>입니다. 음성 인식 SDK는 파일이 공개돼 있고 에뮬레이터에서 확인했지만 사용 허가는 문의 중입니다. 교육 카테고리가 없으니 Music/Audio로 등록하며 가능 여부를 확인 중입니다. 초기 사용자는 그랜저뿐이라 수백 명 규모이고, Pleos 확대에 올라타는 구조라고 솔직하게 답합니다. 아이 목소리 인식은 아직 실측 전이라 느슨하게 판단합니다. 경고등 구독은 비공개 권한이라 보조 신호로만 쓰고, 콘텐츠는 직장 영어 100문장으로 시작합니다.">
+  <div class="frame">
+    <p class="h s rv"><span class="g">약점도</span> 알고 간다</p>
+    <div class="qa rv d1">
+      <div><p class="q">비슷한 개념의 선례가 있다 (덴소 특허 2015, 볼보 IDIS 2003)</p><p class="a">덴소 특허는 미국·일본 모두 <b>2025년 소멸</b>, 한국 등록 없음. "최초"라 하지 않고 쉐도잉 + 아이와 주고받는 등원길 + 차↔휴대폰 하루 루프의 <b>조합</b>으로 승부</p></div>
+      <div><p class="q">운전 중 말하기, 위험하지 않나?</p><p class="a">핵심이 "말하게 하는 것"보다 <b>"위험할 때 말을 시키지 않는 것"</b>. 주행 중 화면 없음, 애매하면 안전한 쪽</p></div>
+      <div><p class="q">음성 인식 SDK가 신청 페이지에서 "Coming Soon"</p><p class="a">SDK 파일은 공개돼 있고 에뮬레이터에서 <b>영어 인식 확인</b>. 사용 허용은 주최 측 문의, 안 되면 정해진 쉼으로 동작</p></div>
+      <div><p class="q">Pleos에 교육 카테고리가 없다</p><p class="a">주행 중 오디오가 허용되는 <b>Music/Audio로 등록</b>. 가능 여부는 설명회·주최 측에 확인</p></div>
+      <div><p class="q">초기 사용자가 적다 (2026년엔 그랜저뿐)</p><p class="a">2026년 말 월 사용자 <b>수백 명</b>(기준 약 490명). Pleos 확대(2030년 2,000만 대)에 올라타는 구조로 솔직하게 설명</p></div>
+      <div><p class="q">아이 목소리를 차 마이크가 알아들을까?</p><p class="a">실측 전. 정답 대조는 느슨하게(소리 내 말했는지 위주), 인식 실패 시 "Nice try!"로 넘어감</p></div>
+      <div><p class="q">경고등 구독은 비공개 퍼미션 · 콘텐츠 제작 비용</p><p class="a">경고등은 보조 신호로만. 콘텐츠는 직장 영어 100문장 MVP, AI 음성으로 제작</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16 부록: MAU ============ -->
+<section class="slide p16" data-sec="부록 · 타깃 규모" data-notes="(질문이 나올 때만) 출퇴근하는 사람은 많지만, 이 앱이 맞는 사람은 혼자 운전해서 출퇴근하며 영어 말하기를 원하는 직장인, 약 90만에서 180만 명으로 봅니다. 하지만 지금은 사람 수보다 <b>Pleos 탑재 대수가 병목</b>입니다. 올해는 그랜저뿐이라 연말 약 4만 대, 기준 시나리오로 월 사용자 약 500명입니다. 그래서 사업성은 Pleos 확대에 올라타는 구조라고 솔직하게 말합니다. 영어 수요·설치·월 활성 비율은 가정이고, 1차 제출 뒤 테스트 사용자 지표로 바꿉니다.">
+  <div class="frame">
+    <p class="h s rv">타깃은 몇 명인가 <span class="g">(가정 포함)</span></p>
+    <div class="fn2">
+      <div class="rv d1">
+        <h3>① 사람 기준: 이 앱이 맞는 사람</h3>
+        <table class="tb"><tbody>
+          <tr><td>통근하는 사람</td><td class="n">2,329만</td><td class="k">통계</td></tr>
+          <tr><td>승용·승합차로 통근</td><td class="n">1,183만</td><td class="k">통계(계산)</td></tr>
+          <tr><td>혼자 운전</td><td class="n">910만</td><td class="k">77.4% · 2010 조사</td></tr>
+          <tr class="hl"><td>영어 말하기 원함</td><td class="n">90만~180만</td><td class="k"><span class="tag-as">가정 10~20%</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="rv d2">
+        <h3>② 차 기준: 지금 쓸 수 있는 사람</h3>
+        <table class="tb">
+          <thead><tr><th>시나리오</th><th>1만 대당</th><th>2026년 말 4만 대</th><th>100만 대</th></tr></thead>
+          <tbody>
+            <tr><td>보수</td><td class="n">31</td><td class="n">약 120</td><td class="n">약 3,100</td></tr>
+            <tr class="hl"><td>기준</td><td class="n">122</td><td class="n">약 490</td><td class="n">약 12,200</td></tr>
+            <tr><td>낙관</td><td class="n">325</td><td class="n">약 1,300</td><td class="n">약 32,500</td></tr>
+          </tbody>
+        </table>
+        <p class="f">탑재 대수 × 차로 통근(50~70%) × 나홀로(77.4%) × 영어 수요(10~20%) × 설치(20~50%) × 월 활성(40~60%). 2026년 Pleos 탑재 차는 더 뉴 그랜저뿐(2025년 판매 약 7.2만 대).</p>
+      </div>
+    </div>
+    <p class="punch rv d3"><span class="g">지금의 병목은 사람이 아니라</span> <span class="mk">Pleos 탑재 대수</span>다.</p>
+  </div>
+  <p class="src">출처: 통계청 2020 인구주택총조사 · 국토교통부 국가교통수요조사(2010, 나홀로 출근 77.4%) · 그랜저 2025 판매(데일리안 보도) · 현대차그룹 보도자료(2026.4.30, 2026.5.14). 대수·비율의 "가정"은 제안자 추정.</p>
+</section>
+
+</main>
+</div>
+
+<button class="nav-btn" id="prevBtn" type="button" aria-label="이전 슬라이드">‹</button>
+<button class="nav-btn" id="nextBtn" type="button" aria-label="다음 슬라이드">›</button>
+<div id="bar"></div>
+<div id="hint"><kbd>←</kbd> <kbd>→</kbd> 이동 · <kbd>N</kbd> 발표자 노트 · <kbd>F</kbd> 전체 화면 · <kbd>R</kbd> 타임랩스 다시 · <kbd>E</kbd> 글 고치기</div>
+<div id="notes" aria-live="polite"></div>
+<div id="editBadge">글 고치는 중 · E로 끝내기 · ⌘S로 파일 저장</div>
+
+<script>
+/* ===========================================
+   SLIDE CONTROLLER
+   1920×1080 무대를 창에 맞게 통째로 확대·축소하고, 키보드·터치·주소(#번호)로 이동한다.
+   =========================================== */
+(function () {
+  var stage = document.getElementById('deckStage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var bar = document.getElementById('bar');
+  var notes = document.getElementById('notes');
+  var total = slides.length;
+  var cur = 0;
+
+  // 장마다 아래 오른쪽에 '구역 이름  03 / 16'
+  slides.forEach(function (s, i) {
+    if (i === 0) return;
+    var c = document.createElement('div');
+    c.className = 'chrome';
+    c.innerHTML = '<b>' + (s.dataset.sec || '') + '</b>' + ('0' + (i + 1)).slice(-2) + ' / ' + total;
+    s.appendChild(c);
+  });
+
+  function fit() {
+    var k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transform = 'translate(' + (innerWidth - 1920 * k) / 2 + 'px,' + (innerHeight - 1080 * k) / 2 + 'px) scale(' + k + ')';
+  }
+
+  function show(i, fromHash) {
+    i = Math.max(0, Math.min(total - 1, i));
+    slides.forEach(function (s, j) {
+      s.classList.toggle('active', j === i);
+      s.classList.toggle('visible', j === i);
+      s.setAttribute('aria-hidden', j === i ? 'false' : 'true');
+    });
+    cur = i;
+    document.dispatchEvent(new CustomEvent('deck:slide', { detail: slides[i].id || '' }));
+    bar.style.width = ((i + 1) / total * 100) + '%';
+    notes.innerHTML = '<b>' + (i + 1) + '번 발표자 노트</b><br>' + (slides[i].dataset.notes || '');
+    if (!fromHash) history.replaceState(null, '', '#' + (i + 1));
+  }
+  function fromHash() { var n = parseInt(location.hash.slice(1), 10); return isNaN(n) ? 0 : n - 1; }
+
+  document.addEventListener('keydown', function (e) {
+    if (document.body.classList.contains('editing') && e.key !== 'Escape') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ' || k === 'Enter') { e.preventDefault(); show(cur + 1); }
+    else if (k === 'ArrowLeft' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); show(cur - 1); }
+    else if (k === 'Home') show(0);
+    else if (k === 'End') show(total - 1);
+    else if (k === 'n' || k === 'N') document.body.classList.toggle('show-notes');
+    else if (k === 'f' || k === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+      else document.exitFullscreen && document.exitFullscreen();
+    }
+  });
+  document.getElementById('prevBtn').addEventListener('click', function () { show(cur - 1); });
+  document.getElementById('nextBtn').addEventListener('click', function () { show(cur + 1); });
+
+  var sx = null;
+  addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', function (e) {
+    if (sx === null) return;
+    var dx = e.changedTouches[0].clientX - sx;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+    sx = null;
+  });
+
+  addEventListener('resize', fit);
+  addEventListener('hashchange', function () { show(fromHash(), true); });
+  fit();
+  show(fromHash(), true);
+})();
+
+/* ===========================================
+   INLINE EDITING
+   E: 슬라이드 글을 바로 고친다. ⌘/Ctrl+S: 고친 내용을 HTML 파일로 내려받는다.
+   =========================================== */
+(function () {
+  var on = false;
+  var targets = '.slide h1, .slide h2, .slide h3, .slide p, .slide li, .slide td, .slide th, .place b, .fact .v, .fact .k, .kpi .v, .kpi .k, .rev div, .vsig b, .vsig span, .trio b, .trio span, .roles div, .risks div, .qs b, .qs span, .chat span';
+  function toggle() {
+    on = !on;
+    document.body.classList.toggle('editing', on);
+    document.querySelectorAll(targets).forEach(function (el) {
+      if (el.closest('.hu') || el.closest('.legacy')) return;
+      if (on) el.setAttribute('contenteditable', 'true'); else el.removeAttribute('contenteditable');
+    });
+  }
+  function save() {
+    if (on) toggle();
+    var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = (location.pathname.split('/').pop() || 'deck.html');
+    a.click();
+  }
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); save(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Escape' && on) { toggle(); return; }
+    if ((e.key === 'e' || e.key === 'E') && !(on && e.target.isContentEditable)) { e.preventDefault(); toggle(); }
+  });
+})();
+</script>
+<script>
+/* ===========================================
+   PLEOS CONNECT 화면 목업
+   HU.render(el, state)로 그린다. .hu[data-state]는 미리 정한 상태로 자동으로 그린다.
+   =========================================== */
+window.HU = (function () {
+  var st = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  var I = {
+    lock: '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 10V7a4 4 0 0 1 8 0v3" ' + st + '/></svg>',
+    search: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" ' + st + '/><path d="M15 15l5 5" ' + st + '/></svg>',
+    bt: '<svg viewBox="0 0 24 24"><path d="M7 7l10 10-5 4V3l5 4L7 17" ' + st + '/></svg>',
+    net: '<svg viewBox="0 0 24 24"><path d="M5 19v-2M9 19v-5M13 19v-8M17 19V7" ' + st + '/></svg>',
+    car: '<svg viewBox="0 0 24 24"><path d="M4 15l1.6-5a2 2 0 0 1 1.9-1.4h9a2 2 0 0 1 1.9 1.4L20 15v3H4z" ' + st + '/><circle cx="8" cy="15.5" r="1" fill="currentColor"/><circle cx="16" cy="15.5" r="1" fill="currentColor"/></svg>',
+    nav: '<svg viewBox="0 0 24 24"><path d="M12 3l7 18-7-4-7 4z" fill="currentColor"/></svg>',
+    phone: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" fill="currentColor"/></svg>',
+    grid: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1" fill="currentColor"/><rect x="13" y="4" width="7" height="7" rx="1" fill="currentColor"/><rect x="4" y="13" width="7" height="7" rx="1" fill="currentColor"/><rect x="13" y="13" width="7" height="7" rx="1" fill="currentColor"/></svg>',
+    seat: '<svg viewBox="0 0 24 24"><path d="M8 3l2 9h6l2 6h-3M8 3c-1 0-2 1-1.6 2.4L9 15h6" ' + st + '/><path d="M15 3c1 2-1 3 0 5M18 3c1 2-1 3 0 5" ' + st + '/></svg>',
+    wheel: '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" ' + st + '/><path d="M4.5 11h15M12 13v7" ' + st + '/><path d="M15 2c1 1.5-1 2.5 0 4M18 2c1 1.5-1 2.5 0 4" ' + st + '/></svg>',
+    defrost: '<svg viewBox="0 0 24 24"><path d="M4 9c4-3 12-3 16 0l-2 8H6z" ' + st + '/><path d="M9 11v4M12 10.5v4.5M15 11v4" ' + st + '/></svg>',
+    fan: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 10c-1-4 3-6 4-3s-2 4-4 3zM14 12c4-1 6 3 3 4s-4-2-3-4zM12 14c1 4-3 6-4 3s2-4 4-3zM10 12c-4 1-6-3-3-4s4 2 3 4z" fill="currentColor"/></svg>',
+    wiper: '<svg class="hu-wpi" viewBox="0 0 24 24"><path d="M3 17a12 12 0 0 1 18 0" fill="none" stroke="#2f80ed" stroke-width="1.8"/><path d="M12 17L7 7" stroke="#2f80ed" stroke-width="1.8" stroke-linecap="round"/><path d="M15 6v2M18 8v2M9 4v2" stroke="#2f80ed" stroke-width="1.6" stroke-linecap="round"/></svg>'
+  };
+  function arrow(dir, on) {
+    var d = dir === 'L' ? 'M10 5L3 12l7 7v-4h10V9H10z' : 'M14 5l7 7-7 7v-4H4V9h10z';
+    return '<svg viewBox="0 0 24 24"><path d="' + d + '" fill="' + (on ? '#22c55e' : '#c9ccd1') + '"/></svg>';
+  }
+  var BARS = [10, 22, 15, 30, 20, 34, 14, 26, 18, 30, 12, 22, 9, 16];
+  var CARS = [[12.6, 17, 2.4, 4, .7], [19.8, 24, 3, 5, 1]];
+  var PRESET = {
+    speak: { time: '오전 8:05', speed: 92, lim: 100, cls: 'speak', label: '말할 차례', sent: '“Could we push the meeting to Thursday?”', sub: '한산한 고속 구간 · 소리 내어 따라 해 보세요', done: 8, card1: ['도착까지', '30분', '오전 8:35 도착'], card2: ['다음 안내', '3.2km', '직진'] },
+    wait: { time: '오전 7:56', speed: 54, lim: 60, cls: 'wait', label: '기다리는 중', sig: 'L', sent: '“Could we push the meeting…”', sub: '방향지시등 켜짐 · 차로 변경이 끝나면 이 문장을 처음부터', done: 3, card1: ['도착까지', '39분', '오전 8:35 도착'], card2: ['다음 안내', '800m', '좌회전'] },
+    listen: { time: '오전 8:12', speed: 61, lim: 80, cls: 'listen', label: '듣기만', wiper: true, sent: '“Let’s circle back on this.”', sub: '비 감지 · 와이퍼가 도는 동안은 듣기만 할게요', done: 10, card1: ['도착까지', '23분', '오전 8:35 도착'], card2: ['다음 안내', '1.5km', '우측 출구'] },
+    summary: { time: '오전 8:35', speed: 0, gear: 'P', lim: 30, cars: [], view: 'summary', done: 19, total: 21 }
+  };
+  var COLOR = { speak: '#16a34a', wait: '#e5484d', listen: '#f5a524', park: '#9ca3af' };
+  function card(c) { return '<div class="hu-card">' + c[0] + '<b>' + c[1] + '</b>' + c[2] + '</div>'; }
+  function lesson(s) {
+    var total = s.total || 18;
+    return '<div class="hu-main">' +
+      '<div class="hu-ah"><span class="hu-logo">S</span>드라이브 쉐도잉</div>' +
+      '<span class="hu-state ' + s.cls + '">' + s.label + '</span>' +
+      '<div class="hu-sent">' + s.sent + '<small>' + s.sub + '</small></div>' +
+      '<div class="hu-wave" style="color:' + COLOR[s.cls] + ';opacity:' + (s.cls === 'wait' || s.cls === 'park' ? .3 : 1) + '">' + BARS.map(function (h) { return '<i style="height:' + (h / 10) + 'em"></i>'; }).join('') + '</div>' +
+      '<div><div class="hu-prog"><span>' + (s.course || '오늘 레슨') + '</span><span>' + s.done + ' / ' + total + ' 문장</span></div><div class="hu-track"><div style="width:' + (s.done / total * 100) + '%"></div></div></div>' +
+      '</div><div class="hu-side">' + card(s.card1) + card(s.card2) + '</div>';
+  }
+  function summary(s) {
+    return '<div class="hu-main">' +
+      '<div class="hu-ah"><span class="hu-logo">S</span>드라이브 쉐도잉 · 오늘의 출근길</div>' +
+      '<div class="hu-big">' + s.done + '<span> / ' + s.total + ' 문장</span></div>' +
+      '<div class="hu-rows"><div><span>남은 2문장</span><b>휴대폰으로 이어 듣기</b></div><div><span>약했던 표현</span><b>push the meeting</b></div><div><span>내일 출근길</span><b>일정 조율 표현 복습</b></div></div>' +
+      '</div><div class="hu-side"><div class="hu-qr"><i></i>휴대폰으로<br>이어 하기</div></div>';
+  }
+  function custom(s) {
+    return '<div class="hu-main"><div class="hu-ah"><span class="hu-logo">S</span>' + s.title + '</div>' + s.main + '</div>' +
+      '<div class="hu-side">' + (s.cards || []).map(card).join('') + (s.side || '') + '</div>';
+  }
+  function render(el, s) {
+    var gear = s.gear || 'D';
+    var cars = s.cars || CARS;
+    var prnd = ['P', 'R', 'N', 'D'].map(function (g) { return g === gear ? '<b>' + g + '</b>' : g; }).join(' ');
+    var clim = '<div class="hu-clim"><span class="dn">⌄</span><div>22.0<small>AUTO</small></div><span class="up">⌃</span></div>';
+    el.innerHTML = '<div class="hu-in">' +
+      '<div class="hu-drv">' +
+        '<div class="hu-road"></div><i class="hu-lane" style="left:14.9em;transform:skewX(12deg)"></i><i class="hu-lane" style="left:18.2em;transform:skewX(-12deg)"></i>' +
+        (gear === 'D' && s.speed > 0 ? '<div class="hu-path"></div>' : '') +
+        cars.map(function (c) { return '<div class="hu-car" style="left:' + c[0] + 'em;top:' + c[1] + 'em;width:' + c[2] + 'em;height:' + c[3] + 'em;opacity:' + c[4] + '"></div>'; }).join('') +
+        '<div class="hu-car me" style="left:15.2em;top:36em;width:3.6em;height:6em"></div>' +
+        '<div class="hu-top"><div class="hu-spd">' + s.speed + '<small>km/h</small></div><div class="hu-prnd">' + prnd + '</div><div class="hu-rng">612km</div></div>' +
+        '<div class="hu-tt"><div class="hu-lim">' + (s.lim || 60) + '</div><div class="hu-sig">' + arrow('L', s.sig === 'L') + arrow('R', s.sig === 'R') + '</div>' + (s.wiper ? I.wiper : '') + '</div>' +
+        '<div class="hu-odo">10,592km</div>' +
+      '</div>' +
+      '<div class="hu-stat">' + I.lock + I.search + '<span class="sp"></span><span class="hu-prof">운</span>' + I.bt + I.net + '<span class="hu-clock">' + s.time + '</span></div>' +
+      '<div class="hu-app">' + (s.view === 'summary' ? summary(s) : s.view === 'custom' ? custom(s) : lesson(s)) + '</div>' +
+      '<div class="hu-gnb">' + clim + '<div class="hu-grp">' + I.defrost + I.seat + I.wheel + '</div>' +
+        '<div class="hu-mid"><span class="hu-ap">' + I.car + '</span><span class="hu-ap">' + I.nav + '</span><span class="hu-ap">' + I.phone + '</span><span class="hu-ap bare">' + I.grid + '</span><span class="hu-div"></span><span class="hu-ap mine">S</span></div>' +
+        '<div class="hu-grp" style="margin:0 2em 0 0">' + I.seat + I.fan + '</div>' + clim +
+      '</div></div>';
+  }
+  document.querySelectorAll('.hu[data-state]').forEach(function (el) { render(el, PRESET[el.dataset.state]); });
+  return { render: render, PRESET: PRESET };
+})();
+
+/* 07·08 에피소드 화면 */
+(function () {
+  var W = '<div class="hu-wave" style="color:#16a34a;height:2.6em">' + [10,22,15,30,20,34,14,26,18,30,12,22].map(function (h) { return '<i style="height:' + (h / 12) + 'em"></i>'; }).join('') + '</div>';
+  var JR = function (id, s) { var el = document.getElementById(id); if (el) HU.render(el, s); };
+  JR('epKid1', { time: '오전 8:05', speed: 48, lim: 50, view: 'custom', title: '드라이브 쉐도잉 · 등원길 영어 놀이',
+    main: '<span class="hu-state speak">지우 차례</span><div class="hu-chat">' +
+      '<div class="hu-bub"><small>앱</small>“Jiwoo, what color is the sky?”</div>' +
+      '<div class="hu-bub r"><small>지우 · 뒷좌석 · 차 마이크가 들었어요</small>“Blue!” ✓</div>' +
+      '<div class="hu-bub"><small>앱</small>“Great job! Say it again: <b>blue sky</b>”</div></div>' +
+      '<p class="hu-note">운전자는 듣기만 · 차로 변경 땐 놀이도 멈춤</p>',
+    cards: [['뒷좌석', '지우', '2열 오른쪽'], ['오늘 놀이', '5 / 8', '색깔 영어']] });
+  JR('epKid2', { time: '오전 8:15', speed: 0, lim: 30, cars: [], view: 'custom', title: '드라이브 쉐도잉',
+    main: '<span class="hu-state park">정차 · 뒷좌석 빔</span><div class="hu-sent">지우가 내렸어요<small>출발하면 남은 25분에 맞춰 내 출근 영어를 시작할게요</small></div>',
+    cards: [['뒷좌석', '비었음', '08:15 하차'], ['도착까지', '25분', '오전 8:41 도착']] });
+  JR('epKid3', { time: '오전 8:16', speed: 42, lim: 50, cls: 'speak', label: '내 영어', course: '출근 레슨', sent: '“Could we push the meeting to Thursday?”', sub: '혼자 된 25분 · 회의 영어 14문장', done: 1, total: 14,
+    card1: ['도착까지', '25분', '오전 8:41 도착'], card2: ['저녁에', '3개', '지우가 말한 표현'] });
+  JR('epFr1', { time: '오후 6:40', speed: 0, gear: 'P', lim: 30, cars: [], view: 'custom', title: '드라이브 쉐도잉',
+    main: '<span class="hu-state park">조수석 착석</span><div class="hu-sent">같이 발음 내기 할까요?<small>둘 중 한 명이 말로 답하면 시작해요</small></div>' +
+      '<div class="hu-btns"><span class="hu-btn">“좋아”</span><span class="hu-btn ghost">“혼자 할게”</span></div>',
+    cards: [['조수석', '탑승', '방금'], ['오늘 문장', '12개', '출근길에 한 것']] });
+  JR('epFr2', { time: '오후 6:45', speed: 64, lim: 80, view: 'custom', title: '드라이브 쉐도잉 · 발음 내기',
+    main: '<span class="hu-state speak">조수석 차례</span><div class="hu-sent">“Let’s circle back on this.”<small>2판 · 세 번째 문장</small></div>' + W +
+      '<div class="hu-duel"><div class="hu-pl"><small>나 · 운전석</small><b>88</b><span>방금 · 알아들은 단어 88%</span></div><div class="hu-pl on"><small>조수석</small><b>…</b><span>지금 말하는 중</span></div></div>',
+    cards: [['판', '2 / 3', '오늘 출퇴근 문장'], ['도착까지', '20분', '오후 7:05 도착']] });
+  JR('epFr3', { time: '오후 7:05', speed: 0, gear: 'P', lim: 30, cars: [], view: 'custom', title: '드라이브 쉐도잉 · 오늘의 발음왕',
+    main: '<div class="hu-big">조수석<span> 2 : 1 승</span></div><div class="hu-rows"><div><span>가장 어려웠던 표현</span><b>circle back</b></div><div><span>내 약한 표현</span><b>내일 출근길에 다시</b></div></div>',
+    side: '<div class="hu-qr"><i></i>휴대폰으로<br>다시 붙기</div>' });
+})();
+
+/* 표지: 말할 차례 ↔ 깜빡이 켜면 기다리는 중, 3초마다 번갈아 */
+(function () {
+  var el = document.getElementById('coverHu');
+  var states = ['speak', 'wait'], i = 0, timer = null;
+  HU.render(el, HU.PRESET.speak);
+  function tick() { i = (i + 1) % 2; HU.render(el, HU.PRESET[states[i]]); }
+  function sync() {
+    var active = el.closest('.slide').classList.contains('active');
+    if (active && !timer && !matchMedia('(prefers-reduced-motion: reduce)').matches) timer = setInterval(tick, 3000);
+    if (!active && timer) { clearInterval(timer); timer = null; }
+  }
+  document.addEventListener('deck:slide', sync);
+  sync();
+})();
+</script>
+<script>
+/* ===========================================
+   06 타임랩스: 운전석에서 본 앞유리 밖 풍경과 Pleos 화면이 하루를 약 28초로 재생한다
+   =========================================== */
+(function () {
+  var slide = document.getElementById('day');
+  if (!slide || !window.HU) return;
+  var $ = function (id) { return document.getElementById(id); };
+  var hu = $('tlHu'), dev = $('tlDev'), phone = $('tlPhone'), ck = $('ck');
+  var NS = 'http://www.w3.org/2000/svg';
+  var JAM = [[15.6, 21.5, 3, 5, 1], [15.4, 29.2, 3.2, 5.4, 1], [11.7, 25.5, 3, 5, 1], [19.7, 27, 3, 5, 1]];
+  var P = [
+    { t: 0, clock: '07:50', mark: 0, cap: '목적지를 찍으면 도착 시간에 맞춰 레슨이 짜집니다',
+      out: { sky: 'day', lane: 1, snap: true, cars: [[1, .3], [2, .22]] },
+      hu: { time: '오전 7:50', speed: 12, lim: 50, cls: 'park', label: '준비 완료', sent: '오늘 35분 · 회의 영어 18문장', sub: '목적지: 회사 · 도착 시간에 맞춰 레슨을 짰어요', done: 0, card1: ['도착까지', '45분', '오전 8:35 도착'], card2: ['다음 안내', '400m', '우회전'] } },
+    { t: 2.5, clock: '07:53', cap: '복잡한 시내 구간: 듣기만',
+      out: { sky: 'day', lane: 1, cars: [[1, .42], [0, .3], [2, .26]] },
+      hu: { time: '오전 7:53', speed: 38, lim: 50, cls: 'listen', label: '듣기만', sent: '“Let’s circle back on this.”', sub: '복잡한 시내 구간 · 지금은 듣기만 할게요', done: 2, card1: ['도착까지', '42분', '오전 8:35 도착'], card2: ['다음 안내', '1.1km', '좌회전'] } },
+    { t: 5.5, clock: '07:56', mark: 1, cap: '왼쪽 깜빡이를 켜고 차로를 바꾸는 순간, 코치는 입을 다뭅니다',
+      out: { sky: 'day', lane: 0, sig: true, cars: [[1, .45], [2, .28]] },
+      hu: { time: '오전 7:56', speed: 54, lim: 60, sig: 'L', cls: 'wait', label: '기다리는 중', sent: '“Could we push the meeting…”', sub: '방향지시등 켜짐 · 문장 중간에 멈췄어요', done: 3, card1: ['도착까지', '39분', '오전 8:35 도착'], card2: ['다음 안내', '800m', '좌회전'] } },
+    { t: 8, clock: '07:57', cap: '차로 변경이 끝나면 같은 문장을 처음부터',
+      out: { sky: 'day', lane: 0, cars: [[1, .5], [0, .2]] },
+      hu: { time: '오전 7:57', speed: 58, lim: 60, cls: 'listen', label: '듣기만', sent: '“Could we push the meeting to Thursday?”', sub: '차로 변경 끝 · 그 문장을 처음부터 다시', done: 3, card1: ['도착까지', '38분', '오전 8:35 도착'], card2: ['다음 안내', '2.1km', '고속화도로 진입'] } },
+    { t: 10, clock: '08:05', cap: '한산한 고속 구간: 소리 내어 따라 말하기',
+      out: { sky: 'day', lane: 0, cars: [[0, .14]] },
+      hu: { time: '오전 8:05', speed: 92, lim: 100, cls: 'speak', label: '말할 차례', sent: '“Could we push the meeting to Thursday?”', sub: '한산한 고속 구간 · 소리 내어 따라 해 보세요', done: 8, card1: ['도착까지', '30분', '오전 8:35 도착'], card2: ['다음 안내', '3.2km', '직진'] } },
+    { t: 13, clock: '08:12', mark: 2, cap: '비가 오고 와이퍼가 돌면: 듣기만',
+      out: { sky: 'rain', lane: 0, rain: true, cars: [[0, .3], [1, .22]] },
+      hu: { time: '오전 8:12', speed: 61, lim: 80, wiper: true, cls: 'listen', label: '듣기만', sent: '“Let’s circle back on this.”', sub: '비 감지 · 와이퍼가 도는 동안은 듣기만 할게요', done: 10, card1: ['도착까지', '23분', '오전 8:35 도착'], card2: ['다음 안내', '1.5km', '우측 출구'] } },
+    { t: 16, clock: '08:20', mark: 3, cap: '막혀서 멈춰 선 지금이 말할 때',
+      out: { sky: 'rain', lane: 0, rain: true, brake: true, cars: [[0, .62], [1, .5], [0, .34], [1, .3], [2, .4]] },
+      hu: { time: '오전 8:20', speed: 0, lim: 80, wiper: true, cars: JAM, cls: 'speak', label: '말할 차례', sent: '“Sounds good to me.”', sub: '정체로 정차 중 · 늦어진 10분만큼 복습 3문장 추가', done: 13, total: 21, card1: ['도착까지', '15분', '정체 +10분'], card2: ['다음 안내', '정체', '1.2km 구간'] } },
+    { t: 19, clock: '08:35', mark: 4, cap: '주차하면 요약, 남은 2문장은 휴대폰으로',
+      out: { sky: 'garage', lane: 1, snap: true, cars: [] },
+      hu: { time: '오전 8:35', speed: 0, gear: 'P', lim: 30, cars: [], view: 'summary', done: 19, total: 21 } },
+    { t: 21.5, clock: '12:40', mark: 5, phone: true, cap: '점심엔 휴대폰이 발음을 봐 줍니다' },
+    { t: 24.5, clock: '18:30', mark: 6, cap: '퇴근길: 약했던 문장 복습 → 다음 날 다시 확인',
+      out: { sky: 'evening', lane: 1, snap: true, cars: [[1, .26], [2, .34]] },
+      hu: { time: '오후 6:30', speed: 74, lim: 80, cls: 'speak', label: '복습', course: '퇴근 복습', sent: '“push the meeting to Thursday”', sub: '점심에 약했던 표현을 더 자주 들려줘요', done: 2, total: 12, card1: ['도착까지', '25분', '오후 6:55 도착'], card2: ['다음 안내', '5.4km', '직진'] } }
+  ];
+  var TOTAL = 28;
+  var marks = ['07:50 출발', '07:56 차로 변경', '08:12 비', '08:20 정체', '08:35 주차', '12:40 점심', '18:30 퇴근'];
+  var markEls = marks.map(function (m, i) {
+    var p = P.filter(function (x) { return x.mark === i; })[0];
+    var el = document.createElement('span');
+    el.textContent = m;
+    el.style.left = (4 + p.t / TOTAL * 92) + '%';
+    $('dlMarks').appendChild(el);
+    return el;
+  });
+
+  var svg = $('ckOut'), VW = 940, VH = 300, VX = 360, VY = 104, LW = 430;
+  function mk(tag, attrs, parent) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); (parent || svg).appendChild(e); return e; }
+  var defs = mk('defs', {});
+  var grad = mk('linearGradient', { id: 'ckSky', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  var s1 = mk('stop', { offset: '0' }, grad), s2 = mk('stop', { offset: '1' }, grad);
+  mk('rect', { x: 0, y: 0, width: VW, height: VY + 1, fill: 'url(#ckSky)' });
+  var ground = mk('rect', { x: 0, y: VY, width: VW, height: VH - VY });
+  var hills = mk('path', { d: 'M0 ' + VY + ' Q 120 ' + (VY - 26) + ' 240 ' + (VY - 8) + ' T 520 ' + (VY - 14) + ' T 940 ' + (VY - 6) + ' V ' + VY + ' H0Z' });
+  var road = mk('polygon', {});
+  var edges = [mk('line', { stroke: '#f4f4f2', 'stroke-linecap': 'round' }), mk('line', { stroke: '#f4f4f2', 'stroke-linecap': 'round' })];
+  var dashG = mk('g', {}), dashes = [];
+  for (var i = 0; i < 28; i++) dashes.push(mk('line', { stroke: '#f4f4f2', 'stroke-linecap': 'butt' }, dashG));
+  var pillarG = mk('g', {});
+  [[120, 34], [760, 40]].forEach(function (pl) { mk('rect', { x: pl[0], y: 20, width: pl[1], height: VH, fill: '#8b8f95' }, pillarG); });
+  mk('text', { x: 137, y: 70, 'font-size': 22, 'font-weight': 800, fill: '#f5c518', 'text-anchor': 'middle' }, pillarG).textContent = 'B2';
+  var carG = mk('g', {}), cars = [];
+  for (var c = 0; c < 6; c++) {
+    var g = mk('g', {}, carG);
+    cars.push({ g: g, body: mk('rect', { fill: '#4b5059' }, g), win: mk('rect', { fill: '#2a2d33' }, g), l: mk('rect', {}, g), r: mk('rect', {}, g) });
+  }
+  var SKY = {
+    day: ['#bcd3e6', '#eef3f6', '#c9ced2', '#9fb59a', '#5d6066'],
+    rain: ['#7d8892', '#aab3bb', '#9aa1a8', '#7f8d84', '#4b4f55'],
+    evening: ['#f0a56b', '#f8d9b5', '#b7aca8', '#8c8f7c', '#565a61'],
+    garage: ['#3c4046', '#5a5f66', '#6e7279', '#6e7279', '#7a7e85']
+  };
+
+  var raf = null, t0 = 0, last = 0, applied = -1, speed = 0, scoreTimer = null;
+  var lanePos = 1, laneTarget = 1, z = 0, out = P[0].out;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function proj(xb, d) { return [VX + (xb - VX) * d, VY + (VH - VY) * d]; }
+  function bound(k) { return VX + (k - lanePos - .5) * LW; }
+  function drawOut() {
+    var sky = SKY[out.sky];
+    s1.setAttribute('stop-color', sky[0]); s2.setAttribute('stop-color', sky[1]);
+    ground.setAttribute('fill', sky[2]); hills.setAttribute('fill', sky[3]);
+    hills.style.display = out.sky === 'garage' ? 'none' : '';
+    pillarG.style.display = out.sky === 'garage' ? '' : 'none';
+    var b0 = bound(0), b3 = bound(3), garage = out.sky === 'garage';
+    road.setAttribute('points', (VX - 3) + ',' + VY + ' ' + (VX + 3) + ',' + VY + ' ' + (b3 + 40) + ',' + VH + ' ' + (b0 - 40) + ',' + VH);
+    road.setAttribute('fill', sky[4]);
+    [b0, b3].forEach(function (b, n) {
+      var e = edges[n]; e.style.display = garage ? 'none' : '';
+      e.setAttribute('x1', VX); e.setAttribute('y1', VY); e.setAttribute('x2', b); e.setAttribute('y2', VH); e.setAttribute('stroke-width', 7);
+    });
+    var n = 0;
+    [1, 2].forEach(function (k) {
+      var xb = bound(k);
+      for (var j = 0; j < 14; j++, n++) {
+        var zz = 1 + j * 2.2 - (z % 2.2), d1 = 1 / zz, d2 = 1 / (zz + 1.1), a = proj(xb, d1), b = proj(xb, d2), ln = dashes[n];
+        ln.style.display = garage || zz < .8 ? 'none' : '';
+        ln.setAttribute('x1', a[0]); ln.setAttribute('y1', a[1]); ln.setAttribute('x2', b[0]); ln.setAttribute('y2', b[1]);
+        ln.setAttribute('stroke-width', Math.max(1, 9 * d1));
+      }
+    });
+    var list = (out.cars || []).slice().sort(function (a, b) { return a[1] - b[1]; });
+    cars.forEach(function (o, i) {
+      var cfg = list[i];
+      if (!cfg) { o.g.style.display = 'none'; return; }
+      o.g.style.display = '';
+      var d = cfg[1], xb = (bound(cfg[0]) + bound(cfg[0] + 1)) / 2, p = proj(xb, d);
+      var w = LW * .62 * d, h = w * .62, x = p[0] - w / 2, y = p[1] - h;
+      o.body.setAttribute('x', x); o.body.setAttribute('y', y); o.body.setAttribute('width', w); o.body.setAttribute('height', h); o.body.setAttribute('rx', w * .12);
+      o.win.setAttribute('x', x + w * .14); o.win.setAttribute('y', y + h * .1); o.win.setAttribute('width', w * .72); o.win.setAttribute('height', h * .32); o.win.setAttribute('rx', w * .06);
+      var lc = out.brake ? '#ff2d2d' : '#b3262b', lw = w * .2, lh = h * .14;
+      [[o.l, x + w * .06], [o.r, x + w * .74]].forEach(function (q) {
+        q[0].setAttribute('x', q[1]); q[0].setAttribute('y', y + h * .55); q[0].setAttribute('width', lw); q[0].setAttribute('height', lh); q[0].setAttribute('rx', lh / 2);
+        q[0].setAttribute('fill', lc);
+        q[0].style.filter = out.brake ? 'drop-shadow(0 0 ' + (w * .08) + 'px #ff3b30)' : '';
+      });
+    });
+  }
+
+  function apply(i) {
+    var p = P[i];
+    if (p.hu) { HU.render(hu, p.hu); speed = p.hu.speed; }
+    if (p.out) {
+      out = p.out; laneTarget = out.lane;
+      if (out.snap) lanePos = laneTarget;
+      ck.classList.toggle('rain-on', !!out.rain);
+      ck.classList.toggle('sig-on', !!out.sig);
+    }
+    $('sceneCap').textContent = p.cap;
+    dev.classList.toggle('dim', !!p.phone);
+    phone.classList.toggle('on', !!p.phone);
+    if (p.phone) countScore();
+    markEls.forEach(function (el, k) { el.classList.toggle('on', P.some(function (x, j) { return j <= i && x.mark === k; })); });
+    drawOut();
+  }
+  function countScore() {
+    clearInterval(scoreTimer);
+    var s = 0, el = $('tlScore');
+    scoreTimer = setInterval(function () { s = Math.min(82, s + 4); el.textContent = s; if (s >= 82) clearInterval(scoreTimer); }, 40);
+  }
+  var mins = function (hm) { var a = hm.split(':'); return +a[0] * 60 + +a[1]; };
+  var fmt = function (m) { m = Math.round(m); return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2); };
+  function frame(now) {
+    var t = (now - t0) / 1000;
+    var dt = Math.min(.05, (now - last) / 1000); last = now;
+    var i = 0;
+    while (i + 1 < P.length && P[i + 1].t <= t) i++;
+    if (i !== applied) { apply(i); applied = i; }
+    var p = P[i], n = P[i + 1];
+    var m = n && mins(n.clock) - mins(p.clock) <= 30 ? mins(p.clock) + (mins(n.clock) - mins(p.clock)) * Math.min(1, (t - p.t) / (n.t - p.t)) : mins(p.clock);
+    $('clock').textContent = fmt(m);
+    $('dlFill').style.width = Math.min(100, 4 + t / TOTAL * 92) + '%';
+    if (!reduce) {
+      z += speed * dt * .06;
+      if (lanePos !== laneTarget) {
+        var step = dt / 1.6;
+        lanePos = Math.abs(laneTarget - lanePos) <= step ? laneTarget : lanePos + (laneTarget > lanePos ? step : -step);
+      }
+      drawOut();
+    }
+    if (t < TOTAL) raf = requestAnimationFrame(frame);
+    else { $('sceneCap').textContent = '출근 학습 → 점심 발음 평가 → 퇴근 복습, 하루가 하나의 루프'; raf = null; }
+  }
+  function start() {
+    stop();
+    applied = -1; z = 0; lanePos = laneTarget = 1;
+    t0 = last = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+  function stop() { if (raf) cancelAnimationFrame(raf); raf = null; clearInterval(scoreTimer); }
+
+  document.addEventListener('deck:slide', function (e) { if (e.detail === 'day') start(); else stop(); });
+  $('replay').addEventListener('click', start);
+  document.addEventListener('keydown', function (e) { if ((e.key === 'r' || e.key === 'R') && slide.classList.contains('active') && !document.body.classList.contains('editing')) start(); });
+  apply(0);
+  if (slide.classList.contains('active')) start();
+})();
+</script>
+</body>
+</html>
